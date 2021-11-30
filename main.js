@@ -53,10 +53,13 @@ const send_audio = async (audio_file, audio_title, caption, duration) => {
         }
 
         if (args[0] === 'add') {
-            await Programs.create({
-                url: args[1],
-                hash: md5(new Date().getTime()),
-            });
+            const urls = args[1].split('|');
+            for (let url of urls) {
+                await Programs.create({
+                    url: url,
+                    hash: md5(new Date().getTime()),
+                });
+            }
         }
 
         if (args[0] === 'remove') {
@@ -70,7 +73,6 @@ const send_audio = async (audio_file, audio_title, caption, duration) => {
         if (!args[0]) {
             const programs = await Programs.findAll();
             for (let program of programs) {
-                console.log(program.id, program.url);
                 https.get(program.url + '?nocache=' + md5(new Date().getTime()), (resp) => {
                     let data = '';
                     resp.on('data', (chunk) => {

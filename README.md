@@ -6,7 +6,7 @@
 
 ```bash
 cp .env.sample .env
-yarn install
+npm install
 ```
 
 Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор. 
@@ -31,6 +31,12 @@ node main.js list
 node main.js add https://echo.msk.ru/programs/...
 ```
 
+или
+
+```bash
+node main.js add https://echo.msk.ru/programs/...|https://echo.msk.ru/programs/...
+```
+
 #### Удаление rss подкаста
 
 ```bash
@@ -47,10 +53,4 @@ node main.js
 
 ```bash
 npm run start
-```
-
-или
-
-```bash
-yarn run start
 ```
