@@ -1,0 +1,22 @@
+{
+  "name": "echomskpodcast",
+  "version": "1.0.0",
+  "description": "Telegram channel @echomskpodcast",
+  "main": "main.js",
+  "repository": "git@github.com:kas-cor/echomskpodcast.git",
+  "author": "kas-cor <kascorp@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "download": "^8.0.0",
+    "fast-xml-parser": "^4.0.0-beta.2",
+    "md5": "^2.3.0",
+    "moment": "^2.29.1",
+    "node-telegram-bot-api": "^0.54.0",
+    "sequelize": "^6.12.0-alpha.1",
+    "sqlite3": "^5.0.2"
+  }
+}
