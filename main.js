@@ -33,6 +33,22 @@ const send_audio = (audio_file, audio_title, caption, duration) => {
     });
 }
 
+const save_and_delete = (program, hash, file) => {
+    return new Promise((resolve, reject) => {
+        program.hash = hash;
+        program.save().then(() => {
+            console.log(program.id, 'save ok');
+            console.log(program.id, 'delete mp3...');
+            fs.unlink(file, () => {
+                console.log(program.id, 'delete ok');
+                resolve(true);
+            });
+        }).catch(() => {
+            reject(true);
+        });
+    });
+}
+
 (async () => {
     await database.sync();
 
@@ -99,28 +115,24 @@ const send_audio = (audio_file, audio_title, caption, duration) => {
                             const stats = fs.statSync(audio_file + audio_title);
                             const fileSizeInBytes = stats.size;
                             if (fileSizeInBytes / 1024 / 1024 <= 50) {
-                                console.log(program.id, 'send to tg...');
-                                send_audio(audio_file + audio_title, audio_title, caption, duration).then(tlgm => {
-                                    if (tlgm) {
-                                        console.log(program.id, 'send to tg ok');
-                                        program.hash = hash;
-                                        console.log(program.id, 'save to db...');
-                                        program.save().then(() => {
-                                            console.log(program.id, 'save ok');
-                                        });
-                                    } else {
-                                        console.log(program.id, 'err: not send to tg!');
-                                    }
-                                    console.log(program.id, 'delete mp3...');
-                                    fs.unlink(audio_file + audio_title, () => {
-                                        console.log(program.id, 'delete ok');
+                                setTimeout(() => {
+                                    console.log(program.id, 'send to tg...');
+                                    send_audio(audio_file + audio_title, audio_title, caption, duration).then(tlgm => {
+                                        if (tlgm) {
+                                            console.log(program.id, 'save to db...');
+                                            save_and_delete(program, hash, audio_file + audio_title).then(() => {
+                                                console.log(program.id, 'save ok');
+                                            });
+                                        } else {
+                                            console.log(program.id, 'err: not send to tg!');
+                                        }
                                     });
-                                });
+                                }, 1000);
                             } else {
                                 console.log(program.id, 'err: file > 50mb!');
-                                console.log(program.id, 'delete mp3...');
-                                fs.unlink(audio_file + audio_title, () => {
-                                    console.log(program.id, 'delete ok');
+                                console.log(program.id, 'save to db...');
+                                save_and_delete(program, hash, audio_file + audio_title).then(() => {
+                                    console.log(program.id, 'save ok');
                                 });
                             }
                         });
