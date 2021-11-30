@@ -31,6 +31,12 @@ node main.js list
 node main.js add https://echo.msk.ru/programs/...
 ```
 
+или
+
+```bash
+node main.js add https://echo.msk.ru/programs/...|https://echo.msk.ru/programs/...
+```
+
 #### Удаление rss подкаста
 
 ```bash
