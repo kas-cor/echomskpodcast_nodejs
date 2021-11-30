@@ -15,8 +15,8 @@ jobs:
       - name: Run a command remotely
         uses: docker://evaneos/ssh-action:0.1.0
         with:
-          hosts: 116.203.50.137
-          user: admin
+          hosts: ${{ secrets.HOST }}
+          user: ${{ secrets.USER }}
           private_key: ${{ secrets.PRIVATE_KEY }}
           commands: |
             cd echomskpodcast
