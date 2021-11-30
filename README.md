@@ -6,7 +6,7 @@
 
 ```bash
 cp .env.sample .env
-yarn install
+npm install
 ```
 
 Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор. 
@@ -47,10 +47,4 @@ node main.js
 
 ```bash
 npm run start
-```
-
-или
-
-```bash
-yarn run start
 ```
