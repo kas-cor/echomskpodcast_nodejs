@@ -78,7 +78,7 @@ const send_audio = async (audio_file, audio_title, caption, duration) => {
                     resp.on('data', (chunk) => {
                         data += chunk;
                     });
-                    resp.on('end', () => {
+                    resp.on('end', async () => {
                         const xml = parser.parse(data);
                         const pubDate = xml.rss.channel.item[0].pubDate;
                         const hash = md5(pubDate);
@@ -87,7 +87,8 @@ const send_audio = async (audio_file, audio_title, caption, duration) => {
                             const audio_url = xml.rss.channel.item[0].guid;
                             const audio_title = path.basename(xml.rss.channel.item[0].guid);
                             const audio_file = __dirname + '/audio/';
-                            download(audio_url, audio_file).then(async () => {
+                            const dwn = await download(audio_url, audio_file);
+                            if (dwn) {
                                 const caption = [
                                     '*' + (xml.rss.channel.item[0].title).trim() + '*',
                                     '_Эфир от ' + moment(pubDate).format('DD.MM.YYYY (HH:mm)') + '_',
@@ -107,9 +108,7 @@ const send_audio = async (audio_file, audio_title, caption, duration) => {
                                     console.log('file > 50MB');
                                 }
                                 fs.unlinkSync(audio_file + audio_title);
-                            }).catch(err => {
-                                console.log(err);
-                            });
+                            }
                         }
                     });
                 }).on('error', (err) => {
