@@ -16,6 +16,14 @@ const parser = new XMLParser();
 const database = require('./db');
 const Programs = require('./Programs');
 
+/**
+ * Send audio message in Telegram
+ * @param {string} audio_file Path to MP3 audio file
+ * @param {string} audio_title Filename MP3 audio file
+ * @param {string} caption Title for MP3 audio file
+ * @param {number} duration Duration MP3 audio file
+ * @returns {Promise<unknown>}
+ */
 const send_audio = (audio_file, audio_title, caption, duration) => {
     return new Promise((resolve, reject) => {
         bot.sendAudio(process.env.TELEGRAM_CHANNEL, audio_file, {
@@ -33,13 +41,20 @@ const send_audio = (audio_file, audio_title, caption, duration) => {
     });
 }
 
-const save_and_delete = (program, hash, file) => {
+/**
+ * Save hash to DB and remove MP3 file
+ * @param {Programs<unknown>} program Item from Programs modal
+ * @param {string} hash Uniq hash for item
+ * @param {string} path_filename Path to filename for remove
+ * @returns {Promise<unknown>}
+ */
+const save_and_delete = (program, hash, path_filename) => {
     return new Promise((resolve, reject) => {
         program.hash = hash;
         program.save().then(() => {
             console.log(program.id, 'save ok');
             console.log(program.id, 'delete mp3...');
-            fs.unlink(file, () => {
+            fs.unlink(path_filename, () => {
                 console.log(program.id, 'delete ok');
                 resolve(true);
             });
@@ -54,12 +69,14 @@ const save_and_delete = (program, hash, file) => {
 
     const args = process.argv.slice(2);
 
+    // Help command
     if (args[0] === 'help') {
         console.log('node main.js add https://...');
         console.log('node main.js list');
         console.log('node main.js remove 1');
     }
 
+    // List all RSS URL from DB
     if (args[0] === 'list') {
         const programs = await Programs.findAll();
         for (let program of programs) {
@@ -67,6 +84,7 @@ const save_and_delete = (program, hash, file) => {
         }
     }
 
+    // Add RSS URL to DB
     if (args[0] === 'add') {
         const urls = args[1].split('|');
         for (let url of urls) {
@@ -77,6 +95,7 @@ const save_and_delete = (program, hash, file) => {
         }
     }
 
+    // Remove RSS URL from DB
     if (args[0] === 'remove') {
         await Programs.destroy({
             where: {
@@ -85,6 +104,7 @@ const save_and_delete = (program, hash, file) => {
         });
     }
 
+    // Run update
     if (!args[0]) {
         const programs = await Programs.findAll();
         for (let program of programs) {
