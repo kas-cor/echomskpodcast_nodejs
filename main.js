@@ -79,13 +79,14 @@ const save_and_delete = (program, hash, video_id = null) => {
         console.log('node main.js add https://...');
         console.log('node main.js list');
         console.log('node main.js remove 1');
+        console.log('node main.js reset');
     }
 
     // List all RSS URL from DB
     if (args[0] === 'list') {
         const programs = await Programs.findAll();
         for (let program of programs) {
-            console.log(program.id, program.url);
+            console.log(program.id, program.url, program.state);
         }
     }
 
@@ -108,6 +109,15 @@ const save_and_delete = (program, hash, video_id = null) => {
             where: {
                 id: args[1],
             }
+        });
+    }
+
+    // Reset all status
+    if (args[0] === 'reset') {
+        await Programs.update({
+            state: 0,
+        }, {
+            where: {},
         });
     }
 
