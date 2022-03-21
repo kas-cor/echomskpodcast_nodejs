@@ -20,7 +20,6 @@ const {exec} = require('child_process');
  * @param {string} audio_file Path to MP3 audio file
  * @param {string} audio_title Filename MP3 audio file
  * @param {string} caption Title for MP3 audio file
- * @param {number} duration Duration MP3 audio file
  * @returns {Promise<unknown>}
  */
 const send_audio = (audio_file, audio_title, caption) => {
@@ -136,7 +135,7 @@ const save_and_delete = (program, hash, path_filename = null) => {
                         program.save().then(() => {
                             console.log(program.id, 'save ok');
                             console.log(program.id, 'download audio...');
-                            exec('youtube-dl -x --max-filesize 50M -f worstaudio --audio-format mp3 --restrict-filenames --no-check-certificate -o ' + audio_file + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                            exec('youtube-dl -x --no-progress --max-filesize 50M -f worstaudio --audio-format mp3 --restrict-filenames --no-check-certificate -o ' + audio_file + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                 if (err) {
                                     console.log(program.id, err.toString());
                                     console.log(program.id, 'save to db...');
@@ -160,8 +159,8 @@ const save_and_delete = (program, hash, path_filename = null) => {
                                 if (fileSizeInBytes / 1024 / 1024 <= 50) {
                                     setTimeout(() => {
                                         console.log(program.id, 'send to tg...');
-                                        send_audio(audio_file, audio_title, caption).then(res => {
-                                            console.log(program.id, res);
+                                        send_audio(audio_file, audio_title, caption, audio_thumb).then(res => {
+                                            // console.log(program.id, res);
                                             console.log(program.id, 'save to db...');
                                             save_and_delete(program, hash, audio_file).then(() => {
                                                 console.log(program.id, 'save ok');
