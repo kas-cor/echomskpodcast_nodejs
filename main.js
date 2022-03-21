@@ -9,7 +9,11 @@ const TelegramBot = require('node-telegram-bot-api');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
 
 const {XMLParser} = require('fast-xml-parser');
-const parser = new XMLParser();
+const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix : "@_",
+    allowBooleanAttributes: true,
+});
 
 const database = require('./db');
 const Programs = require('./Programs');
@@ -42,21 +46,20 @@ const send_audio = (audio_file, audio_title, caption) => {
  * Save hash to DB and remove MP3 file
  * @param {Programs<unknown>} program Item from Programs modal
  * @param {string} hash Uniq hash for item
- * @param {null|string} path_filename Path to filename for remove
+ * @param {null|string} video_id Video ID
  * @returns {Promise<unknown>}
  */
-const save_and_delete = (program, hash, path_filename = null) => {
+const save_and_delete = (program, hash, video_id = null) => {
     return new Promise((resolve, reject) => {
         program.index = 0;
         program.state = 0;
         program.hash = hash;
         program.save().then(() => {
             console.log(program.id, 'save ok');
-            if (path_filename) {
+            if (video_id) {
                 console.log(program.id, 'delete mp3...');
-                fs.unlink(path_filename, () => {
-                    console.log(program.id, 'delete ok');
-                    resolve(true);
+                fs.unlink(__dirname + '/audio/' + video_id + '.mp3', () => {
+                    console.log(program.id, 'delete mp3 ok');
                 });
             }
             resolve(true);
@@ -126,8 +129,8 @@ const save_and_delete = (program, hash, path_filename = null) => {
                     const xml = parser.parse(data);
                     const hash = md5(xml.feed.entry[program.index].id);
                     if (program.hash !== hash) {
-                        const video_id = xml.feed.entry[program.index]['yt:videoId'];
                         const title = xml.feed.entry[program.index].title;
+                        const video_id = xml.feed.entry[program.index]['yt:videoId'];
                         const audio_file = __dirname + '/audio/' + video_id + '.mp3';
                         const audio_title = path.basename(audio_file);
                         console.log(program.id, 'save to db...');
@@ -159,7 +162,7 @@ const save_and_delete = (program, hash, path_filename = null) => {
                                 if (fileSizeInBytes / 1024 / 1024 <= 50) {
                                     setTimeout(() => {
                                         console.log(program.id, 'send to tg...');
-                                        send_audio(audio_file, audio_title, caption, audio_thumb).then(res => {
+                                        send_audio(audio_file, audio_title, caption).then(res => {
                                             // console.log(program.id, res);
                                             console.log(program.id, 'save to db...');
                                             save_and_delete(program, hash, audio_file).then(() => {
