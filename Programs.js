@@ -12,6 +12,14 @@ const Programs = database.define('programs', {
         type: Sequelize.STRING,
         allowNull: false
     },
+    index: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+    },
+    state: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+    },
     hash: {
         type: Sequelize.STRING,
         allowNull: false

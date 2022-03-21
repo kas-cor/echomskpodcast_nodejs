@@ -1,8 +1,6 @@
 require('dotenv').config()
 
 const md5 = require('md5');
-const download = require('download');
-const moment = require('moment');
 const https = require('https');
 const path = require('path');
 const fs = require('fs');
@@ -15,6 +13,7 @@ const parser = new XMLParser();
 
 const database = require('./db');
 const Programs = require('./Programs');
+const {exec} = require('child_process');
 
 /**
  * Send audio message in Telegram
@@ -24,19 +23,18 @@ const Programs = require('./Programs');
  * @param {number} duration Duration MP3 audio file
  * @returns {Promise<unknown>}
  */
-const send_audio = (audio_file, audio_title, caption, duration) => {
+const send_audio = (audio_file, audio_title, caption) => {
     return new Promise((resolve, reject) => {
         bot.sendAudio(process.env.TELEGRAM_CHANNEL, audio_file, {
             'caption': caption,
             'parse_mode': 'markdown',
-            'duration': duration,
         }, {
             filename: audio_title,
             contentType: 'audio/mpeg',
-        }).then(() => {
-            resolve(true);
-        }).catch(() => {
-            reject(false);
+        }).then(res => {
+            resolve(res);
+        }).catch(err => {
+            reject(err);
         });
     });
 }
@@ -45,19 +43,24 @@ const send_audio = (audio_file, audio_title, caption, duration) => {
  * Save hash to DB and remove MP3 file
  * @param {Programs<unknown>} program Item from Programs modal
  * @param {string} hash Uniq hash for item
- * @param {string} path_filename Path to filename for remove
+ * @param {null|string} path_filename Path to filename for remove
  * @returns {Promise<unknown>}
  */
-const save_and_delete = (program, hash, path_filename) => {
+const save_and_delete = (program, hash, path_filename = null) => {
     return new Promise((resolve, reject) => {
+        program.index = 0;
+        program.state = 0;
         program.hash = hash;
         program.save().then(() => {
             console.log(program.id, 'save ok');
-            console.log(program.id, 'delete mp3...');
-            fs.unlink(path_filename, () => {
-                console.log(program.id, 'delete ok');
-                resolve(true);
-            });
+            if (path_filename) {
+                console.log(program.id, 'delete mp3...');
+                fs.unlink(path_filename, () => {
+                    console.log(program.id, 'delete ok');
+                    resolve(true);
+                });
+            }
+            resolve(true);
         }).catch(() => {
             reject(true);
         });
@@ -90,6 +93,8 @@ const save_and_delete = (program, hash, path_filename) => {
         for (let url of urls) {
             await Programs.create({
                 url: url,
+                index: 0,
+                state: 0,
                 hash: md5(new Date().getTime()),
             });
         }
@@ -106,58 +111,81 @@ const save_and_delete = (program, hash, path_filename) => {
 
     // Run update
     if (!args[0]) {
-        const programs = await Programs.findAll();
+        const programs = await Programs.findAll({
+            where: {
+                state: 0,
+            },
+        });
         for (let program of programs) {
             console.log(program.id, 'get xml ' + program.url);
-            https.get(program.url + '?nocache=' + md5(new Date().getTime()), resp => {
+            https.get(program.url + '&nocache=' + md5(new Date().getTime()), resp => {
                 let data = '';
                 resp.on('data', (chunk) => {
                     data += chunk;
                 });
                 resp.on('end', () => {
                     const xml = parser.parse(data);
-                    const pubDate = xml.rss.channel.item[0].pubDate;
-                    const hash = md5(pubDate);
+                    const hash = md5(xml.feed.entry[program.index].id);
                     if (program.hash !== hash) {
-                        const audio_url = xml.rss.channel.item[0].guid;
-                        const audio_title = path.basename(xml.rss.channel.item[0].guid);
-                        const audio_file = __dirname + '/audio/';
-                        console.log(program.id, 'download mp3 ' + audio_url);
-                        download(audio_url, audio_file).then(() => {
-                            console.log(program.id, 'download ok');
-                            const caption = [
-                                '*' + (xml.rss.channel.item[0].title).trim() + '*',
-                                '_Эфир от ' + moment(pubDate).format('DD.MM.YYYY (HH:mm)') + '_',
-                                '[Текст расшифровки передачи](' + xml.rss.channel.item[0].link + ')',
-                            ].join("\n\n");
-                            const duration_arr = (xml.rss.channel.item[0]['itunes:duration']).split(':');
-                            const duration = parseInt(duration_arr[0]) * 3600 + parseInt(duration_arr[1]);
-                            const stats = fs.statSync(audio_file + audio_title);
-                            const fileSizeInBytes = stats.size;
-                            if (fileSizeInBytes / 1024 / 1024 <= 50) {
-                                setTimeout(() => {
-                                    console.log(program.id, 'send to tg...');
-                                    send_audio(audio_file + audio_title, audio_title, caption, duration).then(tlgm => {
-                                        if (tlgm) {
+                        const video_id = xml.feed.entry[program.index]['yt:videoId'];
+                        const title = xml.feed.entry[program.index].title;
+                        const audio_file = __dirname + '/audio/' + video_id + '.mp3';
+                        const audio_title = path.basename(audio_file);
+                        console.log(program.id, 'save to db...');
+                        program.state = 1;
+                        program.save().then(() => {
+                            console.log(program.id, 'save ok');
+                            console.log(program.id, 'download audio...');
+                            exec('youtube-dl -x --max-filesize 50M -f worstaudio --audio-format mp3 --restrict-filenames --no-check-certificate -o ' + audio_file + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                                if (err) {
+                                    console.log(program.id, err.toString());
+                                    console.log(program.id, 'save to db...');
+                                    program.state = 0;
+                                    if (/ERROR: This live event/im.test(err.toString())) {
+                                        program.index = program.index + 1;
+                                    }
+                                    program.save().then(() => {
+                                        console.log(program.id, 'save ok');
+                                    });
+                                    return;
+                                }
+                                console.log(program.id, stdout.toString());
+                                console.log(program.id, 'download ok');
+                                const caption = [
+                                    '*' + (title).trim() + '*',
+                                    '[Ссылка на оригинал видео](https://youtu.be/' + video_id + ')',
+                                ].join("\n\n");
+                                const stats = fs.statSync(audio_file);
+                                const fileSizeInBytes = stats.size;
+                                if (fileSizeInBytes / 1024 / 1024 <= 50) {
+                                    setTimeout(() => {
+                                        console.log(program.id, 'send to tg...');
+                                        send_audio(audio_file, audio_title, caption).then(res => {
+                                            console.log(program.id, res);
                                             console.log(program.id, 'save to db...');
-                                            save_and_delete(program, hash, audio_file + audio_title).then(() => {
+                                            save_and_delete(program, hash, audio_file).then(() => {
                                                 console.log(program.id, 'save ok');
                                             });
-                                        } else {
+                                        }).catch(err => {
                                             console.log(program.id, 'err: not send to tg!');
-                                        }
+                                            console.log(program.id, err);
+                                        });
+                                    }, 1000);
+                                } else {
+                                    console.log(program.id, 'err: file > 50mb!');
+                                    console.log(program.id, 'save to db...');
+                                    save_and_delete(program, hash, audio_file).then(() => {
+                                        console.log(program.id, 'save ok');
                                     });
-                                }, 1000);
-                            } else {
-                                console.log(program.id, 'err: file > 50mb!');
-                                console.log(program.id, 'save to db...');
-                                save_and_delete(program, hash, audio_file + audio_title).then(() => {
-                                    console.log(program.id, 'save ok');
-                                });
-                            }
+                                }
+                            });
                         });
                     } else {
                         console.log(program.id, 'info: old');
+                        console.log(program.id, 'save to db...');
+                        save_and_delete(program, hash).then(() => {
+                            console.log(program.id, 'save ok');
+                        });
                     }
                 });
             }).on('error', err => {
