@@ -56,13 +56,15 @@ const save_and_delete = (program, hash, filepath = null) => {
         program.hash = hash;
         program.save().then(() => {
             console.log(program.id, 'save ok');
-            if (video_id) {
+            if (filepath) {
                 console.log(program.id, 'delete ' + filepath + '...');
                 fs.unlink(filepath, () => {
                     console.log(program.id, 'delete ' + filepath + ' ok');
+                    resolve(true);
                 });
+            } else {
+                resolve(true);
             }
-            resolve(true);
         }).catch(() => {
             reject(true);
         });
