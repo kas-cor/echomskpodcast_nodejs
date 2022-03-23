@@ -1,6 +1,6 @@
 ## Канал в телеграмм [@echomskpodcast](https://t.me/echomskpodcast)
 
-Скрипт для получение mp3 файла подкаста с сайта ЭхоМосквы и отправки его в канал через бота.
+Скрипт для получение аудио с YouTube каналов и отправки его в канал через бота.
 
 ### Установка
 
@@ -19,28 +19,40 @@ npm install
 node main.js help
 ```
 
-#### Список rss подкастов
+#### Список rss
 
 ```bash
 node main.js list
 ```
 
-#### Добавление rss подкаста
+#### Добавление rss
 
 ```bash
-node main.js add https://echo.msk.ru/programs/...
+node main.js add https://www.youtube.com/feeds/videos.xml?channel_id=...
 ```
 
 или
 
 ```bash
-node main.js add https://echo.msk.ru/programs/...|https://echo.msk.ru/programs/...
+node main.js add https://www.youtube.com/feeds/videos.xml?channel_id=...|https://www.youtube.com/feeds/videos.xml?channel_id=...
 ```
 
-#### Удаление rss подкаста
+#### Удаление rss
 
 ```bash
 node main.js remove {id}
+```
+
+#### Сброс статусов
+
+```bash
+node main.js reset
+```
+
+#### Назначение тега
+
+```bash
+node main.js tag {id} {tagName}
 ```
 
 #### Запуск скрипта
