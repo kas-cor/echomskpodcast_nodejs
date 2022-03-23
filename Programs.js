@@ -24,6 +24,10 @@ const Programs = database.define('programs', {
         type: Sequelize.STRING,
         allowNull: false
     },
+    tag: {
+        type: Sequelize.STRING,
+        allowNull: true
+    },
 });
 
 module.exports = Programs;

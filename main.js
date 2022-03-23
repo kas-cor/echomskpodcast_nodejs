@@ -72,28 +72,29 @@ const save_and_delete = (program, hash, filepath = null) => {
 }
 
 (async () => {
-    await database.sync();
+    await database.sync({alter: true});
 
     const args = process.argv.slice(2);
 
     // Help command
     if (args[0] === 'help') {
-        console.log('node main.js add https://...');
+        console.log('node main.js add https://...[|https://...]');
         console.log('node main.js list');
         console.log('node main.js remove 1');
         console.log('node main.js reset');
+        console.log('node main.js tag 1 test');
     }
 
     // List all RSS URL from DB
     if (args[0] === 'list') {
         const programs = await Programs.findAll();
         for (let program of programs) {
-            console.log(program.id, program.url, program.state);
+            console.log(program.id, program.url, program.state, program.tag || '');
         }
     }
 
     // Add RSS URL to DB
-    if (args[0] === 'add') {
+    if (args[0] === 'add' && args[1]) {
         const urls = args[1].split('|');
         for (let url of urls) {
             await Programs.create({
@@ -106,7 +107,7 @@ const save_and_delete = (program, hash, filepath = null) => {
     }
 
     // Remove RSS URL from DB
-    if (args[0] === 'remove') {
+    if (args[0] === 'remove' && args[1]) {
         await Programs.destroy({
             where: {
                 id: args[1],
@@ -120,6 +121,17 @@ const save_and_delete = (program, hash, filepath = null) => {
             state: 0,
         }, {
             where: {},
+        });
+    }
+
+    // Change tag
+    if (args[0] === 'tag' && args[1] && args[2]) {
+        await Programs.update({
+            tag: args[2],
+        }, {
+            where: {
+                id: args[1],
+            },
         });
     }
 
@@ -171,6 +183,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                                     '*' + title + '*',
                                     '[Оригинал видео](https://youtu.be/' + video_id + ')',
                                     '[YouTube канал ' + author_name + '](' + author_url + ')',
+                                    program.tag ? '#' + program.tag : '',
                                 ].join("\n\n");
                                 const stats = fs.statSync(audio_file);
                                 const fileSizeInBytes = stats.size;
