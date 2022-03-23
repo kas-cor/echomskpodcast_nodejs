@@ -183,7 +183,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                                     '*' + title + '*',
                                     '[Оригинал видео](https://youtu.be/' + video_id + ')',
                                     '[YouTube канал ' + author_name + '](' + author_url + ')',
-                                    program.tag ? '#' + program.tag : '',
+                                    (program.tag ? '#' + program.tag + "\n": '') + '@echomskpodcast',
                                 ].join("\n\n");
                                 const stats = fs.statSync(audio_file);
                                 const fileSizeInBytes = stats.size;
