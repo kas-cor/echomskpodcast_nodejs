@@ -168,11 +168,18 @@ const save_and_delete = (program, hash, filepath = null) => {
                                 if (err) {
                                     console.log(program.id, err.toString());
                                     console.log(program.id, 'save to db...');
-                                    program.state = 0;
+                                    let index = 0;
                                     if (/ERROR: This live event/im.test(err.toString())) {
-                                        program.index = program.index + 1;
+                                        index = program.index + 1;
                                     }
-                                    program.save().then(() => {
+                                    Programs.update({
+                                        state: 0,
+                                        index: index,
+                                    }, {
+                                        where: {
+                                            id: program.id,
+                                        },
+                                    }).then(() => {
                                         console.log(program.id, 'save ok');
                                     });
                                     return;
