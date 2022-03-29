@@ -24,13 +24,19 @@ const {exec} = require('child_process');
  * @param {string} audio_file Path to MP3 audio file
  * @param {string} audio_title Filename MP3 audio file
  * @param {string} caption Title for MP3 audio file
+ * @param {string} performer
+ * @param {string} title
+ * @param {number} duration
  * @returns {Promise<unknown>}
  */
-const send_audio = (audio_file, audio_title, caption) => {
+const send_audio = (audio_file, audio_title, caption, performer, title, duration) => {
     return new Promise((resolve, reject) => {
         bot.sendAudio(process.env.TELEGRAM_CHANNEL, audio_file, {
             'caption': caption,
             'parse_mode': 'markdown',
+            'duration': duration,
+            'performer': performer,
+            'title': title,
         }, {
             filename: audio_title,
             contentType: 'audio/mpeg',
@@ -153,6 +159,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                     const xml = parser.parse(data);
                     const hash = md5(xml.feed.entry[program.index].id);
                     if (program.hash !== hash) {
+                        let duration = 86400;
                         const author_name = (xml.feed.author.name).trim();
                         const author_url = (xml.feed.author.uri).trim();
                         const title = (xml.feed.entry[program.index].title).trim();
@@ -163,6 +170,16 @@ const save_and_delete = (program, hash, filepath = null) => {
                         program.state = 1;
                         program.save().then(() => {
                             console.log(program.id, 'save ok');
+                            console.log(program.id, 'get duration audio...');
+                            exec('youtube-dl --get-duration --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                                if (err) {
+                                    console.log(program.id, err.toString());
+                                    return;
+                                }
+                                const arr = stdout.toString().trim().split(':').reverse();
+                                duration = parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600;
+                                console.log(program.id, 'duration audio', duration , 'sec.');
+                            });
                             console.log(program.id, 'download audio...');
                             exec('youtube-dl -x --no-progress --max-filesize 50M -f worstaudio --audio-format mp3 --restrict-filenames --no-check-certificate -o ' + audio_file + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                 if (err) {
@@ -197,7 +214,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                                 if (fileSizeInBytes / 1024 / 1024 <= 50) {
                                     setTimeout(() => {
                                         console.log(program.id, 'send to tg...');
-                                        send_audio(audio_file, audio_title, caption).then(res => {
+                                        send_audio(audio_file, audio_title, caption, author_name, title, duration).then(res => {
                                             // console.log(program.id, res);
                                             console.log(program.id, 'save to db...');
                                             save_and_delete(program, hash, audio_file).then(() => {
