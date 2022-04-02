@@ -254,6 +254,9 @@ const add_new_hash = (hash, hashes) => {
                                         }).catch(err => {
                                             console.log(program.id, 'err: not send to tg!');
                                             console.log(program.id, err);
+                                            save_and_delete(program, hash, audio_file).then(() => {
+                                                console.log(program.id, 'save ok');
+                                            });
                                         });
                                     }, 1000);
                                 } else {
