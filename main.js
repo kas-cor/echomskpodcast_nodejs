@@ -56,6 +56,7 @@ const send_audio = (audio_file, audio_title, caption, performer, title, duration
  * @returns {Promise<unknown>}
  */
 const save_and_delete = (program, hash= null, filepath = null) => {
+    console.log(program.id, 'save to db...');
     return new Promise((resolve, reject) => {
         program.index = 0;
         program.state = 0;
@@ -247,7 +248,6 @@ const add_new_hash = (hash, hashes) => {
                                         console.log(program.id, 'send to tg...');
                                         send_audio(audio_file, audio_title, caption, author_name, title, duration).then(res => {
                                             // console.log(program.id, res);
-                                            console.log(program.id, 'save to db...');
                                             save_and_delete(program, hash, audio_file).then(() => {
                                                 console.log(program.id, 'save ok');
                                             });
@@ -261,7 +261,6 @@ const add_new_hash = (hash, hashes) => {
                                     }, 1000);
                                 } else {
                                     console.log(program.id, 'err: file > 50mb!');
-                                    console.log(program.id, 'save to db...');
                                     save_and_delete(program, hash, audio_file).then(() => {
                                         console.log(program.id, 'save ok');
                                     });
@@ -270,7 +269,6 @@ const add_new_hash = (hash, hashes) => {
                         });
                     } else {
                         console.log(program.id, 'info: old');
-                        console.log(program.id, 'save to db...');
                         save_and_delete(program).then(() => {
                             console.log(program.id, 'save ok');
                         });
