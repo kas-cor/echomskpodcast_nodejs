@@ -15,6 +15,8 @@ const parser = new XMLParser({
     allowBooleanAttributes: true,
 });
 
+const htmlspecialchars_decode = require('htmlspecialchars_decode');
+
 const database = require('./db');
 const Programs = require('./Programs');
 const {exec} = require('child_process');
@@ -109,6 +111,10 @@ const add_new_hash = (hash, hashes) => {
     return '["' + hash + '"]';
 };
 
+const string_filter = text => {
+    return htmlspecialchars_decode(text.trim());
+};
+
 (async () => {
     await database.sync({alter: true});
 
@@ -192,9 +198,9 @@ const add_new_hash = (hash, hashes) => {
                     const hash = md5(xml.feed.entry[program.index].id);
                     if (!hash_is_present(hash, program.hash)) {
                         let duration = 86400;
-                        const author_name = (xml.feed.author.name).trim();
-                        const author_url = (xml.feed.author.uri).trim();
-                        const title = (xml.feed.entry[program.index].title).trim();
+                        const author_name = string_filter(xml.feed.author.name);
+                        const author_url = string_filter(xml.feed.author.uri);
+                        const title = string_filter(xml.feed.entry[program.index].title);
                         const video_id = xml.feed.entry[program.index]['yt:videoId'];
                         const audio_file = __dirname + '/audio/' + video_id + '.mp3';
                         const audio_title = path.basename(audio_file);
