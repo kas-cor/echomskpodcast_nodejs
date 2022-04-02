@@ -51,15 +51,17 @@ const send_audio = (audio_file, audio_title, caption, performer, title, duration
 /**
  * Save hash to DB and remove MP3 file
  * @param {Programs<unknown>} program Item from Programs modal
- * @param {string} hash Uniq hash for item
+ * @param {null|string} hash Uniq hash for item
  * @param {null|string} filepath File path
  * @returns {Promise<unknown>}
  */
-const save_and_delete = (program, hash, filepath = null) => {
+const save_and_delete = (program, hash= null, filepath = null) => {
     return new Promise((resolve, reject) => {
         program.index = 0;
         program.state = 0;
-        program.hash = hash;
+        if (hash) {
+            program.hash = add_new_hash(hash, program.hash);
+        }
         program.save().then(() => {
             console.log(program.id, 'save ok');
             if (filepath) {
@@ -76,6 +78,35 @@ const save_and_delete = (program, hash, filepath = null) => {
         });
     });
 }
+
+const hash_is_present = (hash, hashes) => {
+    let res = false;
+    if (hashes.substring(0, 2) === '["') {
+        const hashes_arr = JSON.parse(hashes);
+        for (let i of hashes_arr) {
+            if (hash === i) {
+                res = true;
+            }
+        }
+    } else if (hash === hashes) {
+        res = true;
+    }
+
+    return res;
+};
+
+const add_new_hash = (hash, hashes) => {
+    if (hashes.substring(0, 2) === '["') {
+        let hashes_arr = JSON.parse(hashes);
+        hashes_arr.push(hash);
+        if (hashes_arr.length > 20) {
+            hashes_arr.shift();
+        }
+        return JSON.stringify(hashes_arr);
+    }
+
+    return '["' + hash + '"]';
+};
 
 (async () => {
     await database.sync({alter: true});
@@ -158,7 +189,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                 resp.on('end', () => {
                     const xml = parser.parse(data);
                     const hash = md5(xml.feed.entry[program.index].id);
-                    if (program.hash !== hash) {
+                    if (!hash_is_present(hash, program.hash)) {
                         let duration = 86400;
                         const author_name = (xml.feed.author.name).trim();
                         const author_url = (xml.feed.author.uri).trim();
@@ -178,7 +209,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                                 }
                                 const arr = stdout.toString().trim().split(':').reverse();
                                 duration = parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600;
-                                console.log(program.id, 'duration audio', duration , 'sec.');
+                                console.log(program.id, 'duration audio', duration, 'sec.');
                             });
                             console.log(program.id, 'download audio...');
                             exec('youtube-dl -x --no-progress --max-filesize 50M -f worstaudio --audio-format mp3 --restrict-filenames --no-check-certificate -o ' + audio_file + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
@@ -207,7 +238,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                                     '*' + title + '*',
                                     '[Оригинал видео](https://youtu.be/' + video_id + ')',
                                     '[YouTube канал ' + author_name + '](' + author_url + ')',
-                                    (program.tag ? '#' + program.tag + "\n": '') + process.env.TELEGRAM_CHANNEL,
+                                    (program.tag ? '#' + program.tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
                                 ].join("\n\n");
                                 const stats = fs.statSync(audio_file);
                                 const fileSizeInBytes = stats.size;
@@ -237,7 +268,7 @@ const save_and_delete = (program, hash, filepath = null) => {
                     } else {
                         console.log(program.id, 'info: old');
                         console.log(program.id, 'save to db...');
-                        save_and_delete(program, hash).then(() => {
+                        save_and_delete(program).then(() => {
                             console.log(program.id, 'save ok');
                         });
                     }

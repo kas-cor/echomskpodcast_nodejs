@@ -21,7 +21,7 @@ const Programs = database.define('programs', {
         allowNull: false
     },
     hash: {
-        type: Sequelize.STRING,
+        type: Sequelize.TEXT,
         allowNull: false
     },
     tag: {
