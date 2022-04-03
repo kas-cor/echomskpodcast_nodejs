@@ -142,10 +142,10 @@ const string_filter = text => {
         console.log('node main.js add https://...[|https://...]');
         console.log('node main.js list');
         console.log('node main.js remove 1');
-        console.log('node main.js reset_all_states');
-        console.log('node main.js reset 1');
-        console.log('node main.js reset_hash 1');
         console.log('node main.js tag 1 test');
+        console.log('node main.js reset_all_states');
+        console.log('node main.js reset_state 1');
+        console.log('node main.js reset_hash 1');
     }
 
     // List all RSS URL from DB
@@ -187,8 +187,8 @@ const string_filter = text => {
         });
     }
 
-    // Reset status
-    if (args[0] === 'reset' && args[1]) {
+    // Reset state
+    if (args[0] === 'reset_state' && args[1]) {
         await Programs.update({
             state: 0,
         }, {
