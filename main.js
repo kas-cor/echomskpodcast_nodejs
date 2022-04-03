@@ -57,7 +57,7 @@ const send_audio = (audio_file, audio_title, caption, performer, title, duration
  * @param {null|string} filepath File path
  * @returns {Promise<unknown>}
  */
-const save_and_delete = (program, hash= null, filepath = null) => {
+const save_and_delete = (program, hash = null, filepath = null) => {
     console.log(program.id, 'save to db...');
     return new Promise((resolve, reject) => {
         program.index = 0;
@@ -82,6 +82,12 @@ const save_and_delete = (program, hash= null, filepath = null) => {
     });
 }
 
+/**
+ * Check present hash in hashes
+ * @param {string} hash
+ * @param {string} hashes
+ * @returns {boolean}
+ */
 const hash_is_present = (hash, hashes) => {
     let res = false;
     if (hashes.substring(0, 2) === '["') {
@@ -98,6 +104,12 @@ const hash_is_present = (hash, hashes) => {
     return res;
 };
 
+/**
+ * Add new hash in hashes
+ * @param {string} hash
+ * @param {string} hashes
+ * @returns {string}
+ */
 const add_new_hash = (hash, hashes) => {
     if (hashes.substring(0, 2) === '["') {
         let hashes_arr = JSON.parse(hashes);
@@ -111,8 +123,13 @@ const add_new_hash = (hash, hashes) => {
     return '["' + hash + '"]';
 };
 
+/**
+ * Filter text
+ * @param {string} text
+ * @returns {string}
+ */
 const string_filter = text => {
-    return htmlspecialchars_decode(text.trim());
+    return htmlspecialchars_decode(text.trim().replace('*', '').replace('_', '')).toString();
 };
 
 (async () => {
