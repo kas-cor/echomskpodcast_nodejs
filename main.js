@@ -142,7 +142,9 @@ const string_filter = text => {
         console.log('node main.js add https://...[|https://...]');
         console.log('node main.js list');
         console.log('node main.js remove 1');
-        console.log('node main.js reset');
+        console.log('node main.js reset_all_states');
+        console.log('node main.js reset 1');
+        console.log('node main.js reset_hash 1');
         console.log('node main.js tag 1 test');
     }
 
@@ -177,11 +179,33 @@ const string_filter = text => {
     }
 
     // Reset all status
-    if (args[0] === 'reset') {
+    if (args[0] === 'reset_all_states') {
         await Programs.update({
             state: 0,
         }, {
             where: {},
+        });
+    }
+
+    // Reset status
+    if (args[0] === 'reset' && args[1]) {
+        await Programs.update({
+            state: 0,
+        }, {
+            where: {
+                id: args[1],
+            },
+        });
+    }
+
+    // Reset hash
+    if (args[0] === 'reset_hash' && args[1]) {
+        await Programs.update({
+            hash: '["' + md5(new Date().getTime()) + '"]',
+        }, {
+            where: {
+                id: args[1],
+            },
         });
     }
 
