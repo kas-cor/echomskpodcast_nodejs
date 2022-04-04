@@ -270,7 +270,7 @@ const string_filter = text => {
                                 audio_file_download = __dirname + '/audio/' + video_id + '.' + audio_format;
                                 console.log(program.id, 'filename audio', video_id + '.' + audio_format);
                                 console.log(program.id, 'get duration audio...');
-                                exec('youtube-dl -x --get-duration --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                                exec('youtube-dl -x --get-duration --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                     if (err) {
                                         save_after_error(program, err.toString()).then(() => {
                                             console.log(program.id, 'save ok');
