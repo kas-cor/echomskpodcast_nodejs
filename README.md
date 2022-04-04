@@ -43,16 +43,28 @@ node main.js add https://www.youtube.com/feeds/videos.xml?channel_id=...|https:/
 node main.js remove {id}
 ```
 
-#### Сброс статусов
-
-```bash
-node main.js reset
-```
-
 #### Назначение тега
 
 ```bash
 node main.js tag {id} {tagName}
+```
+
+#### Сброс всех статусов
+
+```bash
+node main.js reset_all_states
+```
+
+#### Сброс конкретного статуса
+
+```bash
+node main.js reset_state {id}
+```
+
+#### Сброс конкретного хеша
+
+```bash
+node main.js reset_hash {id}
 ```
 
 #### Запуск скрипта

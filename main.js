@@ -239,6 +239,7 @@ const string_filter = text => {
                     const hash = md5(xml.feed.entry[program.index].id);
                     if (!hash_is_present(hash, program.hash)) {
                         let duration = 86400;
+                        let audio_file_download;
                         const author_name = string_filter(xml.feed.author.name);
                         const author_url = string_filter(xml.feed.author.uri);
                         const title = string_filter(xml.feed.entry[program.index].title);
@@ -249,69 +250,77 @@ const string_filter = text => {
                         program.state = 1;
                         program.save().then(() => {
                             console.log(program.id, 'save ok');
-                            console.log(program.id, 'get duration audio...');
-                            exec('youtube-dl --get-duration --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                            console.log(program.id, 'get filename audio...');
+                            exec('youtube-dl -x --get-filename --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                 if (err) {
                                     console.log(program.id, err.toString());
                                     return;
                                 }
-                                const arr = stdout.toString().trim().split(':').reverse();
-                                duration = parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600;
-                                console.log(program.id, 'duration audio', duration, 'sec.');
-                            });
-                            console.log(program.id, 'download audio...');
-                            exec('youtube-dl -x --no-progress --max-filesize 50M -f worstaudio --audio-format mp3 --restrict-filenames --no-check-certificate -o ' + audio_file + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
-                                if (err) {
-                                    console.log(program.id, err.toString());
-                                    console.log(program.id, 'save to db...');
-                                    let index = 0;
-                                    if (/ERROR: This live event/im.test(err.toString())) {
-                                        index = program.index + 1;
+                                const audio_format = stdout.toString().trim().split('.').reverse()[0];
+                                audio_file_download = __dirname + '/audio/' + video_id + '.' + audio_format;
+                                console.log(program.id, 'filename audio', video_id + '.' + audio_format);
+                                console.log(program.id, 'get duration audio...');
+                                exec('youtube-dl -x --get-duration --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                                    if (err) {
+                                        console.log(program.id, err.toString());
+                                        return;
                                     }
-                                    Programs.update({
-                                        state: 0,
-                                        index: index,
-                                    }, {
-                                        where: {
-                                            id: program.id,
-                                        },
-                                    }).then(() => {
-                                        console.log(program.id, 'save ok');
-                                    });
-                                    return;
-                                }
-                                console.log(program.id, stdout.toString());
-                                console.log(program.id, 'download ok');
-                                const caption = [
-                                    '*' + title + '*',
-                                    '[Оригинал видео](https://youtu.be/' + video_id + ')',
-                                    '[YouTube канал ' + author_name + '](' + author_url + ')',
-                                    (program.tag ? '#' + program.tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
-                                ].join("\n\n");
-                                const stats = fs.statSync(audio_file);
-                                const fileSizeInBytes = stats.size;
-                                if (fileSizeInBytes / 1024 / 1024 <= 50) {
-                                    setTimeout(() => {
-                                        console.log(program.id, 'send to tg...');
-                                        send_audio(audio_file, audio_title, caption, author_name, title, duration).then(res => {
-                                            // console.log(program.id, res);
+                                    const arr = stdout.toString().trim().split(':').reverse();
+                                    duration = parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600;
+                                    console.log(program.id, 'duration audio', duration, 'sec.');
+                                    console.log(program.id, 'download audio...');
+                                    exec('youtube-dl -x --no-progress -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail --restrict-filenames --no-check-certificate -o ' + audio_file_download + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                                        if (err) {
+                                            console.log(program.id, err.toString());
+                                            console.log(program.id, 'save to db...');
+                                            let index = 0;
+                                            if (/ERROR: This live event/im.test(err.toString())) {
+                                                index = program.index + 1;
+                                            }
+                                            Programs.update({
+                                                state: 0,
+                                                index: index,
+                                            }, {
+                                                where: {
+                                                    id: program.id,
+                                                },
+                                            }).then(() => {
+                                                console.log(program.id, 'save ok');
+                                            });
+                                            return;
+                                        }
+                                        console.log(program.id, 'download ok');
+                                        console.log(program.id, stdout.toString());
+                                        const caption = [
+                                            '*' + title + '*',
+                                            '[Оригинал видео](https://youtu.be/' + video_id + ')',
+                                            '[YouTube канал ' + author_name + '](' + author_url + ')',
+                                            (program.tag ? '#' + program.tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
+                                        ].join("\n\n");
+                                        const stats = fs.statSync(audio_file);
+                                        const fileSizeInBytes = stats.size;
+                                        if (fileSizeInBytes / 1024 / 1024 <= 50) {
+                                            console.log(program.id, 'send to tg...');
+                                            send_audio(audio_file, audio_title, caption, author_name, title, duration).then(res => {
+                                                // console.log(program.id, res);
+                                                save_and_delete(program, hash, audio_file).then(() => {
+                                                    console.log(program.id, 'save ok');
+                                                });
+                                            }).catch(err => {
+                                                console.log(program.id, 'err: not send to tg!');
+                                                console.log(program.id, err);
+                                                save_and_delete(program, hash, audio_file).then(() => {
+                                                    console.log(program.id, 'save ok');
+                                                });
+                                            });
+                                        } else {
+                                            console.log(program.id, 'err: file > 50mb!');
                                             save_and_delete(program, hash, audio_file).then(() => {
                                                 console.log(program.id, 'save ok');
                                             });
-                                        }).catch(err => {
-                                            console.log(program.id, 'err: not send to tg!');
-                                            console.log(program.id, err);
-                                            save_and_delete(program, hash, audio_file).then(() => {
-                                                console.log(program.id, 'save ok');
-                                            });
-                                        });
-                                    }, 1000);
-                                } else {
-                                    console.log(program.id, 'err: file > 50mb!');
-                                    save_and_delete(program, hash, audio_file).then(() => {
-                                        console.log(program.id, 'save ok');
+                                        }
                                     });
-                                }
+                                });
                             });
                         });
                     } else {
