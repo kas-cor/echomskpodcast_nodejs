@@ -81,6 +81,23 @@ const save_and_delete = (program, video_id = null, filepath = null) => {
     });
 }
 
+const save_after_error = (program, err) => {
+    console.log(program.id, err);
+    console.log(program.id, 'save to db...');
+    return new Promise((resolve, reject) => {
+        program.state = 0;
+        if (/ERROR: This live event/im.test(err.toString())) {
+            program.index = program.index + 1;
+        }
+        program.save().then(() => {
+            console.log(program.id, 'save ok');
+            resolve(true);
+        });
+    }).catch(() => {
+        reject(true);
+    });
+};
+
 /**
  * Check present video ID in video IDs
  * @param {string} video_id
@@ -244,20 +261,7 @@ const string_filter = text => {
                             console.log(program.id, 'get filename audio...');
                             exec('youtube-dl -x --get-filename --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                 if (err) {
-                                    console.log(program.id, err.toString());
-                                    console.log(program.id, 'save to db...');
-                                    let index = 0;
-                                    if (/ERROR: This live event/im.test(err.toString())) {
-                                        index = program.index + 1;
-                                    }
-                                    Programs.update({
-                                        state: 0,
-                                        index: index,
-                                    }, {
-                                        where: {
-                                            id: program.id,
-                                        },
-                                    }).then(() => {
+                                    save_after_error(program, err.toString()).then(() => {
                                         console.log(program.id, 'save ok');
                                     });
                                     return;
@@ -268,7 +272,9 @@ const string_filter = text => {
                                 console.log(program.id, 'get duration audio...');
                                 exec('youtube-dl -x --get-duration --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                     if (err) {
-                                        console.log(program.id, err.toString());
+                                        save_after_error(program, err.toString()).then(() => {
+                                            console.log(program.id, 'save ok');
+                                        });
                                         return;
                                     }
                                     const arr = stdout.toString().trim().split(':').reverse();
@@ -277,19 +283,7 @@ const string_filter = text => {
                                     console.log(program.id, 'download audio...');
                                     exec('youtube-dl -x --no-progress -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail --restrict-filenames --no-check-certificate -o ' + audio_file_download + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                         if (err) {
-                                            console.log(program.id, err.toString());
-                                            let index = 0;
-                                            if (/ERROR: This live event/im.test(err.toString())) {
-                                                index = program.index + 1;
-                                            }
-                                            Programs.update({
-                                                state: 0,
-                                                index: index,
-                                            }, {
-                                                where: {
-                                                    id: program.id,
-                                                },
-                                            }).then(() => {
+                                            save_after_error(program, err.toString()).then(() => {
                                                 console.log(program.id, 'save ok');
                                             });
                                             return;
