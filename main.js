@@ -1,6 +1,5 @@
 require('dotenv').config()
 
-const md5 = require('md5');
 const https = require('https');
 const path = require('path');
 const fs = require('fs');
@@ -51,19 +50,19 @@ const send_audio = (audio_file, audio_title, caption, performer, title, duration
 }
 
 /**
- * Save hash to DB and remove MP3 file
+ * Save video ID to DB and remove MP3 file
  * @param {Programs<unknown>} program Item from Programs modal
- * @param {null|string} hash Uniq hash for item
+ * @param {null|string} video_id Uniq video ID for item
  * @param {null|string} filepath File path
  * @returns {Promise<unknown>}
  */
-const save_and_delete = (program, hash = null, filepath = null) => {
+const save_and_delete = (program, video_id = null, filepath = null) => {
     console.log(program.id, 'save to db...');
     return new Promise((resolve, reject) => {
         program.index = 0;
         program.state = 0;
-        if (hash) {
-            program.hash = add_new_hash(hash, program.hash);
+        if (video_id) {
+            program.video_ids = add_new_video_id(video_id, program.video_ids);
         }
         program.save().then(() => {
             console.log(program.id, 'save ok');
@@ -83,44 +82,37 @@ const save_and_delete = (program, hash = null, filepath = null) => {
 }
 
 /**
- * Check present hash in hashes
- * @param {string} hash
- * @param {string} hashes
+ * Check present video ID in video IDs
+ * @param {string} video_id
+ * @param {string} video_ids
  * @returns {boolean}
  */
-const hash_is_present = (hash, hashes) => {
+const video_id_is_present = (video_id, video_ids) => {
     let res = false;
-    if (hashes.substring(0, 2) === '["') {
-        const hashes_arr = JSON.parse(hashes);
-        for (let i of hashes_arr) {
-            if (hash === i) {
-                res = true;
-            }
+    const video_ids_arr = JSON.parse(video_ids);
+    for (let i of video_ids_arr) {
+        if (video_id === i) {
+            res = true;
         }
-    } else if (hash === hashes) {
-        res = true;
     }
 
     return res;
 };
 
 /**
- * Add new hash in hashes
- * @param {string} hash
- * @param {string} hashes
+ * Add new video ID in video IDs
+ * @param {string} video_id
+ * @param {string} video_ids
  * @returns {string}
  */
-const add_new_hash = (hash, hashes) => {
-    if (hashes.substring(0, 2) === '["') {
-        let hashes_arr = JSON.parse(hashes);
-        hashes_arr.push(hash);
-        if (hashes_arr.length > 20) {
-            hashes_arr.shift();
-        }
-        return JSON.stringify(hashes_arr);
+const add_new_video_id = (video_id, video_ids) => {
+    let video_ids_arr = JSON.parse(video_ids);
+    video_ids_arr.push(video_id);
+    if (video_ids_arr.length > 20) {
+        video_ids_arr.shift();
     }
 
-    return '["' + hash + '"]';
+    return JSON.stringify(video_ids_arr);
 };
 
 /**
@@ -145,7 +137,7 @@ const string_filter = text => {
         console.log('node main.js tag 1 test');
         console.log('node main.js reset_all_states');
         console.log('node main.js reset_state 1');
-        console.log('node main.js reset_hash 1');
+        console.log('node main.js reset_ids 1');
     }
 
     // List all RSS URL from DB
@@ -164,7 +156,7 @@ const string_filter = text => {
                 url: url,
                 index: 0,
                 state: 0,
-                hash: md5(new Date().getTime()),
+                video_ids: '["' + (new Date().getTime()) + '"]',
             });
         }
     }
@@ -198,10 +190,10 @@ const string_filter = text => {
         });
     }
 
-    // Reset hash
-    if (args[0] === 'reset_hash' && args[1]) {
+    // Reset video ID
+    if (args[0] === 'reset_ids' && args[1]) {
         await Programs.update({
-            hash: '["' + md5(new Date().getTime()) + '"]',
+            video_ids: '["' + (new Date().getTime()) + '"]',
         }, {
             where: {
                 id: args[1],
@@ -229,21 +221,20 @@ const string_filter = text => {
         });
         for (let program of programs) {
             console.log(program.id, 'get xml ' + program.url);
-            https.get(program.url + '&nocache=' + md5(new Date().getTime()), resp => {
+            https.get(program.url + '&nocache=' + Math.random(), resp => {
                 let data = '';
                 resp.on('data', (chunk) => {
                     data += chunk;
                 });
                 resp.on('end', () => {
                     const xml = parser.parse(data);
-                    const hash = md5(xml.feed.entry[program.index].id);
-                    if (!hash_is_present(hash, program.hash)) {
+                    const video_id = xml.feed.entry[program.index]['yt:videoId'];
+                    if (!video_id_is_present(video_id, program.video_ids)) {
                         let duration = 86400;
                         let audio_file_download;
                         const author_name = string_filter(xml.feed.author.name);
                         const author_url = string_filter(xml.feed.author.uri);
                         const title = string_filter(xml.feed.entry[program.index].title);
-                        const video_id = xml.feed.entry[program.index]['yt:videoId'];
                         const audio_file = __dirname + '/audio/' + video_id + '.mp3';
                         const audio_title = path.basename(audio_file);
                         console.log(program.id, 'save to db...');
@@ -303,19 +294,19 @@ const string_filter = text => {
                                             console.log(program.id, 'send to tg...');
                                             send_audio(audio_file, audio_title, caption, author_name, title, duration).then(res => {
                                                 // console.log(program.id, res);
-                                                save_and_delete(program, hash, audio_file).then(() => {
+                                                save_and_delete(program, video_id, audio_file).then(() => {
                                                     console.log(program.id, 'save ok');
                                                 });
                                             }).catch(err => {
                                                 console.log(program.id, 'err: not send to tg!');
                                                 console.log(program.id, err);
-                                                save_and_delete(program, hash, audio_file).then(() => {
+                                                save_and_delete(program, video_id, audio_file).then(() => {
                                                     console.log(program.id, 'save ok');
                                                 });
                                             });
                                         } else {
                                             console.log(program.id, 'err: file > 50mb!');
-                                            save_and_delete(program, hash, audio_file).then(() => {
+                                            save_and_delete(program, video_id, audio_file).then(() => {
                                                 console.log(program.id, 'save ok');
                                             });
                                         }

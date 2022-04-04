@@ -61,10 +61,10 @@ node main.js reset_all_states
 node main.js reset_state {id}
 ```
 
-#### Сброс конкретного хеша
+#### Сброс видео IDs
 
 ```bash
-node main.js reset_hash {id}
+node main.js reset_ids {id}
 ```
 
 #### Запуск скрипта

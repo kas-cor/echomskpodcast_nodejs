@@ -20,7 +20,7 @@ const Programs = database.define('programs', {
         type: Sequelize.INTEGER,
         allowNull: false
     },
-    hash: {
+    video_ids: {
         type: Sequelize.TEXT,
         allowNull: false
     },
