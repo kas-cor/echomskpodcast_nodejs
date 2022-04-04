@@ -278,6 +278,20 @@ const string_filter = text => {
                                     exec('youtube-dl -x --no-progress -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail --restrict-filenames --no-check-certificate -o ' + audio_file_download + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                         if (err) {
                                             console.log(program.id, err.toString());
+                                            let index = 0;
+                                            if (/ERROR: This live event/im.test(err.toString())) {
+                                                index = program.index + 1;
+                                            }
+                                            Programs.update({
+                                                state: 0,
+                                                index: index,
+                                            }, {
+                                                where: {
+                                                    id: program.id,
+                                                },
+                                            }).then(() => {
+                                                console.log(program.id, 'save ok');
+                                            });
                                             return;
                                         }
                                         console.log(program.id, 'download ok');
