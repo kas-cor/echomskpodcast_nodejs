@@ -251,7 +251,7 @@ const string_filter = text => {
                         program.save().then(() => {
                             console.log(program.id, 'save ok');
                             console.log(program.id, 'get filename audio...');
-                            exec('youtube-dl -x --get-filename --no-check-certificate "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
+                            exec('youtube-dl -x --get-filename --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
                                 if (err) {
                                     console.log(program.id, err.toString());
                                     console.log(program.id, 'save to db...');
