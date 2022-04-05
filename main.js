@@ -10,7 +10,7 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
 const {XMLParser} = require('fast-xml-parser');
 const parser = new XMLParser({
     ignoreAttributes: false,
-    attributeNamePrefix: "@_",
+    attributeNamePrefix: '@_',
     allowBooleanAttributes: true,
 });
 
@@ -18,7 +18,12 @@ const htmlspecialchars_decode = require('htmlspecialchars_decode');
 
 const database = require('./db');
 const Programs = require('./Programs');
+
 const {exec} = require('child_process');
+const exec_regular_params = 'youtube-dl -x --no-progress --no-check-certificate --restrict-filenames';
+const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
+const exec_download = exec_regular_params + ' -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
 
@@ -86,7 +91,7 @@ const extract_entry_from_xml = (xml, i) => {
 
 /**
  * Get xml from url
- * @param {string} url
+ * @param {string} url Url RSS channel
  * @returns {Promise<unknown>}
  */
 const get_xml = url => {
@@ -107,7 +112,7 @@ const get_xml = url => {
  * Save video ID to DB and remove MP3 file
  * @param {object} program Item from Programs modal
  * @param {null|string} video_id Uniq video ID for item
- * @param {null|string} filepath File path
+ * @param {null|string} filepath File path to audio mp3
  * @returns {Promise<unknown>}
  */
 const save_and_delete = (program, video_id = null, filepath = null) => {
@@ -132,8 +137,8 @@ const save_and_delete = (program, video_id = null, filepath = null) => {
 
 /**
  * Save after error
- * @param {object} program
- * @param {string} err
+ * @param {object} program Item from Programs modal
+ * @param {string} err Error description
  * @returns {Promise<unknown>}
  */
 const save_after_error = (program, err) => {
@@ -146,7 +151,7 @@ const save_after_error = (program, err) => {
 
 /**
  * Save before download
- * @param {object} program
+ * @param {object} program Item from Programs modal
  * @returns {Promise<unknown>}
  */
 const save_before_download = program => {
@@ -156,12 +161,12 @@ const save_before_download = program => {
 
 /**
  * Get file name
- * @param {string} video_id
+ * @param {string} video_id Uniq video ID
  * @returns {Promise<unknown>}
  */
 const get_filename = video_id => {
     return new Promise((resolve, reject) => {
-        exec('youtube-dl -x --get-filename --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout) => {
+        exec(exec_get_filename.replace('{video_id}', video_id), (err, stdout) => {
             if (err) {
                 reject(err.toString());
                 return;
@@ -174,12 +179,12 @@ const get_filename = video_id => {
 
 /**
  * Get duration audio
- * @param {string} video_id
+ * @param {string} video_id Uniq video ID
  * @returns {Promise<unknown>}
  */
 const get_duration = video_id => {
     return new Promise((resolve, reject) => {
-        exec('youtube-dl -x --get-duration --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout) => {
+        exec(exec_get_duration.replace('{video_id}', video_id), (err, stdout) => {
             if (err) {
                 reject(err.toString());
                 return;
@@ -197,13 +202,13 @@ const get_duration = video_id => {
 
 /**
  * Download audio
- * @param {string} video_id
- * @param {string} audio_file_download
+ * @param {string} video_id Uniq video ID
+ * @param {string} audio_file_download Output filepath
  * @returns {Promise<unknown>}
  */
 const download_audio = (video_id, audio_file_download) => {
     return new Promise((resolve, reject) => {
-        exec('youtube-dl -x --no-progress -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail --restrict-filenames --no-check-certificate -o ' + audio_file_download + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout) => {
+        exec(exec_download.replace('{output_file}', audio_file_download).replace('{video_id}', video_id), (err, stdout) => {
             if (err) {
                 reject(err.toString());
                 return;
@@ -218,7 +223,7 @@ const download_audio = (video_id, audio_file_download) => {
 
 /**
  * Get file size
- * @param {string} filename
+ * @param {string} filename Filename audio
  * @returns {Promise<unknown>}
  */
 const get_file_size = filename => {
@@ -241,10 +246,10 @@ const get_file_size = filename => {
 /**
  * Send audio message in Telegram
  * @param {string} audio_file Path to MP3 audio file
- * @param {object} channel
- * @param {object} entry
- * @param {string} tag
- * @param {number} duration
+ * @param {object} channel Channel info
+ * @param {object} entry Entry info
+ * @param {string} tag Tag for item
+ * @param {number} duration Duration audio file
  * @returns {Promise<unknown>}
  */
 const send_audio = (audio_file, channel, entry, tag, duration) => {
@@ -267,7 +272,7 @@ const send_audio = (audio_file, channel, entry, tag, duration) => {
 
 /**
  * Main script
- * @param {object} program
+ * @param {object} program Item from Programs modal
  * @returns {Promise<unknown>}
  */
 const main = program => {
@@ -350,16 +355,16 @@ const main = program => {
 
     // Help command
     if (args[0] === 'help') {
-        console.log('node main.js add https://...[|https://...]');
+        console.log('node main.js add {channel_id}[|{channel_id}]');
         console.log('node main.js list');
-        console.log('node main.js remove 1');
-        console.log('node main.js tag 1 test');
+        console.log('node main.js remove {id}');
+        console.log('node main.js tag {id} test');
         console.log('node main.js reset_all_states');
-        console.log('node main.js reset_state 1');
-        console.log('node main.js reset_ids 1');
+        console.log('node main.js reset_state {id}');
+        console.log('node main.js reset_ids {id}');
     }
 
-    // List all RSS URL from DB
+    // List all channels from DB
     if (args[0] === 'list') {
         const programs = await Programs.findAll();
         for (let program of programs) {
@@ -367,12 +372,12 @@ const main = program => {
         }
     }
 
-    // Add RSS URL to DB
+    // Add channel ID to DB
     if (args[0] === 'add' && args[1]) {
-        const urls = args[1].split('|');
-        for (let url of urls) {
+        const channel_ids = args[1].split('|');
+        for (let channel_id of channel_ids) {
             await Programs.create({
-                url: url,
+                url: 'https://www.youtube.com/feeds/videos.xml?channel_id=' + channel_id,
                 index: 0,
                 state: 0,
                 video_ids: '["' + (new Date().getTime()) + '"]',
@@ -380,7 +385,7 @@ const main = program => {
         }
     }
 
-    // Remove RSS URL from DB
+    // Remove channel from DB
     if (args[0] === 'remove' && args[1]) {
         await Programs.destroy({
             where: {
@@ -409,7 +414,7 @@ const main = program => {
         });
     }
 
-    // Reset video ID
+    // Reset video IDs in channel
     if (args[0] === 'reset_ids' && args[1]) {
         await Programs.update({
             video_ids: '["' + (new Date().getTime()) + '"]',
@@ -420,7 +425,7 @@ const main = program => {
         });
     }
 
-    // Change tag
+    // Change tag in channel
     if (args[0] === 'tag' && args[1] && args[2]) {
         await Programs.update({
             tag: args[2],
@@ -431,7 +436,7 @@ const main = program => {
         });
     }
 
-    // Run update
+    // Run check and download audio from channels
     if (!args[0]) {
         const programs = await Programs.findAll({
             where: {

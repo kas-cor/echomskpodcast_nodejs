@@ -19,31 +19,25 @@ npm install
 node main.js help
 ```
 
-#### Список rss
+#### Список каналов
 
 ```bash
 node main.js list
 ```
 
-#### Добавление rss
+#### Добавление канала
 
 ```bash
-node main.js add https://www.youtube.com/feeds/videos.xml?channel_id=...
+node main.js add {channel_id}[|{channel_id}]
 ```
 
-или
-
-```bash
-node main.js add https://www.youtube.com/feeds/videos.xml?channel_id=...|https://www.youtube.com/feeds/videos.xml?channel_id=...
-```
-
-#### Удаление rss
+#### Удаление канала
 
 ```bash
 node main.js remove {id}
 ```
 
-#### Назначение тега
+#### Назначение тега каналу
 
 ```bash
 node main.js tag {id} {tagName}
@@ -61,7 +55,7 @@ node main.js reset_all_states
 node main.js reset_state {id}
 ```
 
-#### Сброс видео IDs
+#### Сброс IDs канала
 
 ```bash
 node main.js reset_ids {id}
