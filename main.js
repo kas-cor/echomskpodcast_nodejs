@@ -20,82 +20,15 @@ const database = require('./db');
 const Programs = require('./Programs');
 const {exec} = require('child_process');
 
-/**
- * Send audio message in Telegram
- * @param {string} audio_file Path to MP3 audio file
- * @param {string} audio_title Filename MP3 audio file
- * @param {string} caption Title for MP3 audio file
- * @param {string} performer
- * @param {string} title
- * @param {number} duration
- * @returns {Promise<unknown>}
- */
-const send_audio = (audio_file, audio_title, caption, performer, title, duration) => {
-    return new Promise((resolve, reject) => {
-        bot.sendAudio(process.env.TELEGRAM_CHANNEL, audio_file, {
-            'caption': caption,
-            'parse_mode': 'markdown',
-            'duration': duration,
-            'performer': performer,
-            'title': title,
-        }, {
-            filename: audio_title,
-            contentType: 'audio/mpeg',
-        }).then(res => {
-            resolve(res);
-        }).catch(err => {
-            reject(err);
-        });
-    });
-}
+// Functions
 
 /**
- * Save video ID to DB and remove MP3 file
- * @param {Programs<unknown>} program Item from Programs modal
- * @param {null|string} video_id Uniq video ID for item
- * @param {null|string} filepath File path
- * @returns {Promise<unknown>}
+ * Filter text
+ * @param {string} text
+ * @returns {string}
  */
-const save_and_delete = (program, video_id = null, filepath = null) => {
-    console.log(program.id, 'save to db...');
-    return new Promise((resolve, reject) => {
-        program.index = 0;
-        program.state = 0;
-        if (video_id) {
-            program.video_ids = add_new_video_id(video_id, program.video_ids);
-        }
-        program.save().then(() => {
-            console.log(program.id, 'save ok');
-            if (filepath) {
-                console.log(program.id, 'delete ' + filepath + '...');
-                fs.unlink(filepath, () => {
-                    console.log(program.id, 'delete ' + filepath + ' ok');
-                    resolve(true);
-                });
-            } else {
-                resolve(true);
-            }
-        }).catch(() => {
-            reject(true);
-        });
-    });
-}
-
-const save_after_error = (program, err) => {
-    console.log(program.id, err);
-    console.log(program.id, 'save to db...');
-    return new Promise((resolve, reject) => {
-        program.state = 0;
-        if (/ERROR: This live event/im.test(err.toString())) {
-            program.index = program.index + 1;
-        }
-        program.save().then(() => {
-            console.log(program.id, 'save ok');
-            resolve(true);
-        });
-    }).catch(() => {
-        reject(true);
-    });
+const string_filter = text => {
+    return htmlspecialchars_decode(text.trim().replace('*', '').replace('_', '')).toString();
 };
 
 /**
@@ -105,15 +38,7 @@ const save_after_error = (program, err) => {
  * @returns {boolean}
  */
 const video_id_is_present = (video_id, video_ids) => {
-    let res = false;
-    const video_ids_arr = JSON.parse(video_ids);
-    for (let i of video_ids_arr) {
-        if (video_id === i) {
-            res = true;
-        }
-    }
-
-    return res;
+    return !!JSON.parse(video_ids).find(e => e === video_id);
 };
 
 /**
@@ -128,17 +53,294 @@ const add_new_video_id = (video_id, video_ids) => {
     if (video_ids_arr.length > 20) {
         video_ids_arr.shift();
     }
-
     return JSON.stringify(video_ids_arr);
 };
 
 /**
- * Filter text
- * @param {string} text
- * @returns {string}
+ * Extract channel data from xml
+ * @param {object} xml
+ * @returns {{author_name: string, author_url: string}}
  */
-const string_filter = text => {
-    return htmlspecialchars_decode(text.trim().replace('*', '').replace('_', '')).toString();
+const extract_channel_from_xml = xml => {
+    return {
+        author_name: string_filter(xml.feed.author.name),
+        author_url: string_filter(xml.feed.author.uri),
+    };
+};
+
+/**
+ * Extract entry data from xml
+ * @param {object} xml
+ * @param {number} i
+ * @returns {{title: string, video_id}}
+ */
+const extract_entry_from_xml = (xml, i) => {
+    const entry = xml.feed.entry[i];
+    return {
+        video_id: entry['yt:videoId'],
+        title: string_filter(entry.title),
+    };
+};
+
+// Promises
+
+/**
+ * Get xml from url
+ * @param {string} url
+ * @returns {Promise<unknown>}
+ */
+const get_xml = url => {
+    return new Promise(resolve => {
+        https.get(url + '&nocache=' + Math.random(), resp => {
+            let data = '';
+            resp.on('data', (chunk) => {
+                data += chunk;
+            });
+            resp.on('end', () => {
+                resolve(parser.parse(data));
+            });
+        });
+    });
+};
+
+/**
+ * Save video ID to DB and remove MP3 file
+ * @param {object} program Item from Programs modal
+ * @param {null|string} video_id Uniq video ID for item
+ * @param {null|string} filepath File path
+ * @returns {Promise<unknown>}
+ */
+const save_and_delete = (program, video_id = null, filepath = null) => {
+    return new Promise(resolve => {
+        program.index = 0;
+        program.state = 0;
+        if (video_id) {
+            program.video_ids = add_new_video_id(video_id, program.video_ids);
+        }
+        program.save().then(() => {
+            if (filepath) {
+                fs.unlink(filepath, () => {
+                    console.log(program.id, 'delete ' + filepath);
+                    resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+/**
+ * Save after error
+ * @param {object} program
+ * @param {string} err
+ * @returns {Promise<unknown>}
+ */
+const save_after_error = (program, err) => {
+    program.state = 0;
+    if (/ERROR: This live event/im.test(err)) {
+        program.index = program.index + 1;
+    }
+    return program.save();
+};
+
+/**
+ * Save before download
+ * @param {object} program
+ * @returns {Promise<unknown>}
+ */
+const save_before_download = program => {
+    program.state = 1;
+    return program.save();
+};
+
+/**
+ * Get file name
+ * @param {string} video_id
+ * @returns {Promise<unknown>}
+ */
+const get_filename = video_id => {
+    return new Promise((resolve, reject) => {
+        exec('youtube-dl -x --get-filename --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout) => {
+            if (err) {
+                reject(err.toString());
+                return;
+            }
+            const exception = stdout.toString().trim().split('.').reverse()[0];
+            resolve(__dirname + '/audio/' + video_id + '.' + exception);
+        });
+    });
+};
+
+/**
+ * Get duration audio
+ * @param {string} video_id
+ * @returns {Promise<unknown>}
+ */
+const get_duration = video_id => {
+    return new Promise((resolve, reject) => {
+        exec('youtube-dl -x --get-duration --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout) => {
+            if (err) {
+                reject(err.toString());
+                return;
+            }
+            const out = stdout.toString().trim();
+            if (out === '0') {
+                reject('duration 0 sec.');
+                return;
+            }
+            const arr = out.split(':').reverse();
+            resolve(parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600);
+        });
+    });
+};
+
+/**
+ * Download audio
+ * @param {string} video_id
+ * @param {string} audio_file_download
+ * @returns {Promise<unknown>}
+ */
+const download_audio = (video_id, audio_file_download) => {
+    return new Promise((resolve, reject) => {
+        exec('youtube-dl -x --no-progress -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail --restrict-filenames --no-check-certificate -o ' + audio_file_download + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout) => {
+            if (err) {
+                reject(err.toString());
+                return;
+            }
+            resolve({
+                stdout: stdout.toString(),
+                audio_file: __dirname + '/audio/' + video_id + '.mp3',
+            });
+        });
+    });
+};
+
+/**
+ * Get file size
+ * @param {string} filename
+ * @returns {Promise<unknown>}
+ */
+const get_file_size = filename => {
+    return new Promise((resolve, reject) => {
+        fs.stat(filename, (err, stats) => {
+            if (err) {
+                reject(0);
+                return;
+            }
+            const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
+            if (size_mb <= 50) {
+                resolve(size_mb);
+            } else {
+                reject(size_mb);
+            }
+        });
+    });
+};
+
+/**
+ * Send audio message in Telegram
+ * @param {string} audio_file Path to MP3 audio file
+ * @param {object} channel
+ * @param {object} entry
+ * @param {string} tag
+ * @param {number} duration
+ * @returns {Promise<unknown>}
+ */
+const send_audio = (audio_file, channel, entry, tag, duration) => {
+    return bot.sendAudio(process.env.TELEGRAM_CHANNEL, audio_file, {
+        'caption': [
+            '*' + entry.title + '*',
+            '[Оригинал видео](https://youtu.be/' + entry.video_id + ')',
+            '[YouTube канал ' + channel.author_name + '](' + channel.author_url + ')',
+            (tag ? '#' + tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
+        ].join("\n\n"),
+        'parse_mode': 'markdown',
+        'duration': duration,
+        'performer': channel.author_name,
+        'title': entry.title,
+    }, {
+        filename: path.basename(audio_file),
+        contentType: 'audio/mpeg',
+    });
+};
+
+/**
+ * Main script
+ * @param {object} program
+ * @returns {Promise<unknown>}
+ */
+const main = program => {
+    return new Promise(resolve => {
+        console.log(program.id, 'get xml', program.url, program.tag);
+        get_xml(program.url).then(xml => {
+            const entry = extract_entry_from_xml(xml, program.index);
+            if (!video_id_is_present(entry.video_id, program.video_ids)) {
+                save_before_download(program).then(() => {
+
+                    console.log(program.id, 'get filename audio...');
+                    get_filename(entry.video_id).then(audio_file_download => {
+                        console.log(program.id, 'filename audio', audio_file_download);
+
+                        console.log(program.id, 'get duration audio...');
+                        get_duration(entry.video_id).then(duration => {
+                            console.log(program.id, 'duration audio', duration, 'sec.');
+
+                            console.log(program.id, 'download audio...');
+                            download_audio(entry.video_id, audio_file_download).then(res => {
+                                console.log(program.id, res.stdout);
+                                const audio_file = res.audio_file;
+
+                                console.log(program.id, 'get file size...');
+                                get_file_size(audio_file).then(file_size => {
+                                    console.log(program.id, 'file size ' + file_size + ' MB');
+
+                                    console.log(program.id, 'send to tg...');
+                                    send_audio(audio_file, extract_channel_from_xml(xml), entry, program.tag, duration).then(res => {
+                                        // console.log(program.id, res);
+                                        save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                            resolve();
+                                        });
+                                    }).catch(err => {
+                                        console.log(program.id, 'Error (send_audio): not send to tg');
+                                        console.log(program.id, err);
+                                        save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                            resolve();
+                                        });
+                                    });
+                                }).catch(file_size => {
+                                    console.log(program.id, 'Error (get_file_size): file(' + file_size + ') > 50 MB');
+                                    save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                        resolve();
+                                    });
+                                });
+                            }).catch(err => {
+                                console.log(program.id, 'Error (download_audio): ' + err);
+                                save_after_error(program, err.toString()).then(() => {
+                                    resolve();
+                                });
+                            });
+                        }).catch(err => {
+                            console.log(program.id, 'Error (get_duration): ' + err);
+                            save_after_error(program, err.toString()).then(() => {
+                                resolve();
+                            });
+                        });
+                    }).catch(err => {
+                        console.log(program.id, 'Error (get_filename): ' + err);
+                        save_after_error(program, err.toString()).then(() => {
+                            resolve();
+                        });
+                    });
+                });
+            } else {
+                console.log(program.id, 'pass');
+                save_and_delete(program).then(() => {
+                    resolve();
+                });
+            }
+        });
+    });
 };
 
 (async () => {
@@ -236,102 +438,12 @@ const string_filter = text => {
                 state: 0,
             },
         });
+        let runs = [];
         for (let program of programs) {
-            console.log(program.id, 'get xml ' + program.url);
-            https.get(program.url + '&nocache=' + Math.random(), resp => {
-                let data = '';
-                resp.on('data', (chunk) => {
-                    data += chunk;
-                });
-                resp.on('end', () => {
-                    const xml = parser.parse(data);
-                    const video_id = xml.feed.entry[program.index]['yt:videoId'];
-                    if (!video_id_is_present(video_id, program.video_ids)) {
-                        let duration = 86400;
-                        let audio_file_download;
-                        const author_name = string_filter(xml.feed.author.name);
-                        const author_url = string_filter(xml.feed.author.uri);
-                        const title = string_filter(xml.feed.entry[program.index].title);
-                        const audio_file = __dirname + '/audio/' + video_id + '.mp3';
-                        const audio_title = path.basename(audio_file);
-                        console.log(program.id, 'save to db...');
-                        program.state = 1;
-                        program.save().then(() => {
-                            console.log(program.id, 'save ok');
-                            console.log(program.id, 'get filename audio...');
-                            exec('youtube-dl -x --get-filename --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
-                                if (err) {
-                                    save_after_error(program, err.toString()).then(() => {
-                                        console.log(program.id, 'save ok');
-                                    });
-                                    return;
-                                }
-                                const audio_format = stdout.toString().trim().split('.').reverse()[0];
-                                audio_file_download = __dirname + '/audio/' + video_id + '.' + audio_format;
-                                console.log(program.id, 'filename audio', video_id + '.' + audio_format);
-                                console.log(program.id, 'get duration audio...');
-                                exec('youtube-dl -x --get-duration --no-check-certificate --restrict-filenames "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
-                                    if (err) {
-                                        save_after_error(program, err.toString()).then(() => {
-                                            console.log(program.id, 'save ok');
-                                        });
-                                        return;
-                                    }
-                                    const arr = stdout.toString().trim().split(':').reverse();
-                                    duration = parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600;
-                                    console.log(program.id, 'duration audio', duration, 'sec.');
-                                    console.log(program.id, 'download audio...');
-                                    exec('youtube-dl -x --no-progress -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail --restrict-filenames --no-check-certificate -o ' + audio_file_download + ' "https://www.youtube.com/watch?v=' + video_id + '"', (err, stdout, stderr) => {
-                                        if (err) {
-                                            save_after_error(program, err.toString()).then(() => {
-                                                console.log(program.id, 'save ok');
-                                            });
-                                            return;
-                                        }
-                                        console.log(program.id, 'download ok');
-                                        console.log(program.id, stdout.toString());
-                                        const caption = [
-                                            '*' + title + '*',
-                                            '[Оригинал видео](https://youtu.be/' + video_id + ')',
-                                            '[YouTube канал ' + author_name + '](' + author_url + ')',
-                                            (program.tag ? '#' + program.tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
-                                        ].join("\n\n");
-                                        const stats = fs.statSync(audio_file);
-                                        const fileSizeInBytes = stats.size;
-                                        if (fileSizeInBytes / 1024 / 1024 <= 50) {
-                                            console.log(program.id, 'send to tg...');
-                                            send_audio(audio_file, audio_title, caption, author_name, title, duration).then(res => {
-                                                // console.log(program.id, res);
-                                                save_and_delete(program, video_id, audio_file).then(() => {
-                                                    console.log(program.id, 'save ok');
-                                                });
-                                            }).catch(err => {
-                                                console.log(program.id, 'err: not send to tg!');
-                                                console.log(program.id, err);
-                                                save_and_delete(program, video_id, audio_file).then(() => {
-                                                    console.log(program.id, 'save ok');
-                                                });
-                                            });
-                                        } else {
-                                            console.log(program.id, 'err: file > 50mb!');
-                                            save_and_delete(program, video_id, audio_file).then(() => {
-                                                console.log(program.id, 'save ok');
-                                            });
-                                        }
-                                    });
-                                });
-                            });
-                        });
-                    } else {
-                        console.log(program.id, 'info: old');
-                        save_and_delete(program).then(() => {
-                            console.log(program.id, 'save ok');
-                        });
-                    }
-                });
-            }).on('error', err => {
-                console.log(program.id, 'err: ' + err);
-            });
+            runs.push(main(program));
         }
+        Promise.all(runs).then(() => {
+            console.log('finish');
+        });
     }
 })();
