@@ -14,8 +14,6 @@ const parser = new XMLParser({
     allowBooleanAttributes: true,
 });
 
-const htmlspecialchars_decode = require('htmlspecialchars_decode');
-
 const database = require('./db');
 const Programs = require('./Programs');
 
@@ -33,7 +31,30 @@ const exec_download = exec_regular_params + ' -f worstaudio --audio-format mp3 -
  * @returns {string}
  */
 const string_filter = text => {
-    return htmlspecialchars_decode(text.trim().replace('*', '').replace('_', '')).toString();
+    const replace = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#039;': '\'',
+        '&lsqb;': '[',
+        '&rsqb;': ']',
+        '&Hat;': '^',
+        '&sol;': '/',
+        '&lpar;': '(',
+        '&rpar;': ')',
+        '&plus;': '+',
+        '&bsol;': '\\',
+        '&nbsp;': ' ',
+        '&copy;': '©',
+        '*': '',
+        '_': ' ',
+    };
+    for (const search in replace) {
+        text = text.replaceAll(search, replace[search]);
+    }
+
+    return text.trim();
 };
 
 /**
