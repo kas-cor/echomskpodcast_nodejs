@@ -21,6 +21,7 @@ const {exec} = require('child_process');
 const exec_regular_params = 'youtube-dl -x --no-progress --no-check-certificate --restrict-filenames';
 const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
 const exec_download = exec_regular_params + ' -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
@@ -90,7 +91,7 @@ const add_new_video_id = (video_id, video_ids) => {
 const extract_channel_from_xml = xml => {
     return {
         author_name: string_filter(xml.feed.author.name),
-        author_url: string_filter(xml.feed.author.uri),
+        author_url: xml.feed.author.uri,
     };
 };
 
@@ -222,6 +223,23 @@ const get_duration = video_id => {
 };
 
 /**
+ * Get title audio
+ * @param {string} video_id Uniq video ID
+ * @returns {Promise<unknown>}
+ */
+const get_title = video_id => {
+    return new Promise((resolve, reject) => {
+        exec(exec_get_title.replace('{video_id}', video_id), (err, stdout) => {
+            if (err) {
+                reject(err.toString());
+                return;
+            }
+            resolve(stdout.toString().trim());
+        });
+    });
+};
+
+/**
  * Download audio
  * @param {string} video_id Uniq video ID
  * @param {string} audio_file_download Output filepath
@@ -312,38 +330,44 @@ const main = program => {
                         get_duration(entry.video_id).then(duration => {
                             console.log(program.id, 'duration audio', duration, 'sec.');
 
-                            console.log(program.id, 'download audio...');
-                            download_audio(entry.video_id, audio_file_download).then(res => {
-                                console.log(program.id, res.stdout);
-                                const audio_file = res.audio_file;
+                            console.log(program.id, 'get title audio...');
+                            get_title(entry.video_id).then(title => {
+                                console.log(program.id, 'title audio', title);
+                                entry.title = string_filter(title);
 
-                                console.log(program.id, 'get file size...');
-                                get_file_size(audio_file).then(file_size => {
-                                    console.log(program.id, 'file size ' + file_size + ' MB');
+                                console.log(program.id, 'download audio...');
+                                download_audio(entry.video_id, audio_file_download).then(res => {
+                                    console.log(program.id, res.stdout);
+                                    const audio_file = res.audio_file;
 
-                                    console.log(program.id, 'send to tg...');
-                                    send_audio(audio_file, extract_channel_from_xml(xml), entry, program.tag, duration).then(res => {
-                                        // console.log(program.id, res);
-                                        save_and_delete(program, entry.video_id, audio_file).then(() => {
-                                            resolve();
+                                    console.log(program.id, 'get file size...');
+                                    get_file_size(audio_file).then(file_size => {
+                                        console.log(program.id, 'file size ' + file_size + ' MB');
+
+                                        console.log(program.id, 'send to tg...');
+                                        send_audio(audio_file, extract_channel_from_xml(xml), entry, program.tag, duration).then(res => {
+                                            // console.log(program.id, res);
+                                            save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                                resolve();
+                                            });
+                                        }).catch(err => {
+                                            console.log(program.id, 'Error (send_audio): not send to tg');
+                                            console.log(program.id, err);
+                                            save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                                resolve();
+                                            });
                                         });
-                                    }).catch(err => {
-                                        console.log(program.id, 'Error (send_audio): not send to tg');
-                                        console.log(program.id, err);
+                                    }).catch(file_size => {
+                                        console.log(program.id, 'Error (get_file_size): file(' + file_size + ') > 50 MB');
                                         save_and_delete(program, entry.video_id, audio_file).then(() => {
                                             resolve();
                                         });
                                     });
-                                }).catch(file_size => {
-                                    console.log(program.id, 'Error (get_file_size): file(' + file_size + ') > 50 MB');
-                                    save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                }).catch(err => {
+                                    console.log(program.id, 'Error (download_audio): ' + err);
+                                    save_after_error(program, err.toString()).then(() => {
                                         resolve();
                                     });
-                                });
-                            }).catch(err => {
-                                console.log(program.id, 'Error (download_audio): ' + err);
-                                save_after_error(program, err.toString()).then(() => {
-                                    resolve();
                                 });
                             });
                         }).catch(err => {
