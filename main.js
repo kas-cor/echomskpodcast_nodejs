@@ -182,56 +182,15 @@ const save_before_download = program => {
 };
 
 /**
- * Get file name
- * @param {string} video_id Uniq video ID
+ * Execute youtube_dl command
+ * @param {string} command
  * @returns {Promise<unknown>}
  */
-const get_filename = video_id => {
+const youtube_dl = command => {
     return new Promise((resolve, reject) => {
-        exec(exec_get_filename.replace('{video_id}', video_id), (err, stdout) => {
+        exec(command, (err, stdout) => {
             if (err) {
-                reject(err.toString());
-                return;
-            }
-            const exception = stdout.toString().trim().split('.').reverse()[0];
-            resolve(__dirname + '/audio/' + video_id + '.' + exception);
-        });
-    });
-};
-
-/**
- * Get duration audio
- * @param {string} video_id Uniq video ID
- * @returns {Promise<unknown>}
- */
-const get_duration = video_id => {
-    return new Promise((resolve, reject) => {
-        exec(exec_get_duration.replace('{video_id}', video_id), (err, stdout) => {
-            if (err) {
-                reject(err.toString());
-                return;
-            }
-            const out = stdout.toString().trim();
-            if (out === '0') {
-                reject('duration 0 sec.');
-                return;
-            }
-            const arr = out.split(':').reverse();
-            resolve(parseInt(arr[0] || 0) + parseInt(arr[1] || 0) * 60 + parseInt(arr[2] || 0) * 3600);
-        });
-    });
-};
-
-/**
- * Get title audio
- * @param {string} video_id Uniq video ID
- * @returns {Promise<unknown>}
- */
-const get_title = video_id => {
-    return new Promise((resolve, reject) => {
-        exec(exec_get_title.replace('{video_id}', video_id), (err, stdout) => {
-            if (err) {
-                reject(err.toString());
+                reject(err.toString().trim());
                 return;
             }
             resolve(stdout.toString().trim());
@@ -240,25 +199,52 @@ const get_title = video_id => {
 };
 
 /**
+ * Get file name
+ * @param {string} video_id Uniq video ID
+ * @returns {Promise<unknown>}
+ */
+const get_filename = video_id => youtube_dl(exec_get_filename.replace('{video_id}', video_id)).then(res => {
+    return __dirname + '/audio/' + video_id + '.' + res.split('.').reverse()[0];
+});
+
+/**
+ * Get duration audio
+ * @param {string} video_id Uniq video ID
+ * @returns {Promise<unknown>}
+ */
+const get_duration = video_id => youtube_dl(exec_get_duration.replace('{video_id}', video_id)).then(res => {
+    if (res === '0') {
+        return {
+            'full': '',
+            'sec': 0,
+        };
+    }
+    const part = res.split(':');
+    return {
+        'full': res,
+        'sec': parseInt(part[2] || 0) + parseInt(part[1] || 0) * 60 + parseInt(part[0] || 0) * 3600,
+    }
+});
+
+/**
+ * Get title audio
+ * @param {string} video_id Uniq video ID
+ * @returns {Promise<unknown>}
+ */
+const get_title = video_id => youtube_dl(exec_get_title.replace('{video_id}', video_id));
+
+/**
  * Download audio
  * @param {string} video_id Uniq video ID
  * @param {string} audio_file_download Output filepath
  * @returns {Promise<unknown>}
  */
-const download_audio = (video_id, audio_file_download) => {
-    return new Promise((resolve, reject) => {
-        exec(exec_download.replace('{output_file}', audio_file_download).replace('{video_id}', video_id), (err, stdout) => {
-            if (err) {
-                reject(err.toString());
-                return;
-            }
-            resolve({
-                stdout: stdout.toString(),
-                audio_file: __dirname + '/audio/' + video_id + '.mp3',
-            });
-        });
-    });
-};
+const download_audio = (video_id, audio_file_download) => youtube_dl(exec_download.replace('{output_file}', audio_file_download).replace('{video_id}', video_id)).then(res => {
+    return {
+        stdout: res,
+        audio_file: __dirname + '/audio/' + video_id + '.mp3',
+    };
+});
 
 /**
  * Get file size
@@ -328,12 +314,12 @@ const main = program => {
 
                         console.log(program.id, 'get duration audio...');
                         get_duration(entry.video_id).then(duration => {
-                            console.log(program.id, 'duration audio', duration, 'sec.');
+                            console.log(program.id, 'duration audio', duration.full, '-', duration.sec, 'sec.');
 
                             console.log(program.id, 'get title audio...');
                             get_title(entry.video_id).then(title => {
-                                console.log(program.id, 'title audio', title);
                                 entry.title = string_filter(title);
+                                console.log(program.id, 'title audio', entry.title);
 
                                 console.log(program.id, 'download audio...');
                                 download_audio(entry.video_id, audio_file_download).then(res => {
@@ -345,7 +331,7 @@ const main = program => {
                                         console.log(program.id, 'file size ' + file_size + ' MB');
 
                                         console.log(program.id, 'send to tg...');
-                                        send_audio(audio_file, extract_channel_from_xml(xml), entry, program.tag, duration).then(res => {
+                                        send_audio(audio_file, extract_channel_from_xml(xml), entry, program.tag, duration.sec).then(res => {
                                             // console.log(program.id, res);
                                             save_and_delete(program, entry.video_id, audio_file).then(() => {
                                                 resolve();
