@@ -70,8 +70,8 @@ const video_id_is_present = (video_id, video_ids) => {
 
 /**
  * Add new video ID in video IDs
- * @param {string} video_id
- * @param {string} video_ids
+ * @param {string} video_id Video ID
+ * @param {string} video_ids Video IDs
  * @returns {string}
  */
 const add_new_video_id = (video_id, video_ids) => {
@@ -85,27 +85,13 @@ const add_new_video_id = (video_id, video_ids) => {
 
 /**
  * Extract channel data from xml
- * @param {object} xml
+ * @param {object} xml XML object
  * @returns {{author_name: string, author_url: string}}
  */
 const extract_channel_from_xml = xml => {
     return {
         author_name: string_filter(xml.feed.author.name),
         author_url: xml.feed.author.uri,
-    };
-};
-
-/**
- * Extract entry data from xml
- * @param {object} xml
- * @param {number} i
- * @returns {{title: string, video_id}}
- */
-const extract_entry_from_xml = (xml, i) => {
-    const entry = xml.feed.entry[i];
-    return {
-        video_id: entry['yt:videoId'],
-        title: string_filter(entry.title),
     };
 };
 
@@ -183,7 +169,7 @@ const save_before_download = program => {
 
 /**
  * Execute youtube_dl command
- * @param {string} command
+ * @param {string} command Execute command
  * @returns {Promise<unknown>}
  */
 const youtube_dl = command => {
@@ -191,7 +177,6 @@ const youtube_dl = command => {
         exec(command, (err, stdout) => {
             if (err) {
                 reject(err.toString().trim());
-                return;
             }
             resolve(stdout.toString().trim());
         });
@@ -219,10 +204,10 @@ const get_duration = video_id => youtube_dl(exec_get_duration.replace('{video_id
             'sec': 0,
         };
     }
-    const part = res.split(':');
+    const part = res.split(':').reverse();
     return {
         'full': res,
-        'sec': parseInt(part[2] || 0) + parseInt(part[1] || 0) * 60 + parseInt(part[0] || 0) * 3600,
+        'sec': parseInt(part[0] || 0) + parseInt(part[1] || 0) * 60 + parseInt(part[2] || 0) * 3600,
     }
 });
 
@@ -256,7 +241,6 @@ const get_file_size = filename => {
         fs.stat(filename, (err, stats) => {
             if (err) {
                 reject(0);
-                return;
             }
             const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
             if (size_mb <= 50) {
@@ -272,23 +256,24 @@ const get_file_size = filename => {
  * Send audio message in Telegram
  * @param {string} audio_file Path to MP3 audio file
  * @param {object} channel Channel info
- * @param {object} entry Entry info
+ * @param {string} video_id Video ID
+ * @param {string} title Title
  * @param {string} tag Tag for item
  * @param {number} duration Duration audio file
  * @returns {Promise<unknown>}
  */
-const send_audio = (audio_file, channel, entry, tag, duration) => {
+const send_audio = (audio_file, channel, video_id, title, tag, duration) => {
     return bot.sendAudio(process.env.TELEGRAM_CHANNEL, audio_file, {
         'caption': [
-            '*' + entry.title + '*',
-            '[Оригинал видео](https://youtu.be/' + entry.video_id + ')',
+            '*' + title + '*',
+            '[Оригинал видео](https://youtu.be/' + video_id + ')',
             '[YouTube канал ' + channel.author_name + '](' + channel.author_url + ')',
             (tag ? '#' + tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
         ].join("\n\n"),
         'parse_mode': 'markdown',
         'duration': duration,
         'performer': channel.author_name,
-        'title': entry.title,
+        'title': title,
     }, {
         filename: path.basename(audio_file),
         contentType: 'audio/mpeg',
@@ -304,25 +289,24 @@ const main = program => {
     return new Promise(resolve => {
         console.log(program.id, 'get xml', program.url, program.tag);
         get_xml(program.url).then(xml => {
-            const entry = extract_entry_from_xml(xml, program.index);
-            if (!video_id_is_present(entry.video_id, program.video_ids)) {
+            const video_id = xml.feed.entry[program.index]['yt:videoId'];
+            if (!video_id_is_present(video_id, program.video_ids)) {
                 save_before_download(program).then(() => {
 
                     console.log(program.id, 'get filename audio...');
-                    get_filename(entry.video_id).then(audio_file_download => {
+                    get_filename(video_id).then(audio_file_download => {
                         console.log(program.id, 'filename audio', audio_file_download);
 
                         console.log(program.id, 'get duration audio...');
-                        get_duration(entry.video_id).then(duration => {
+                        get_duration(video_id).then(duration => {
                             console.log(program.id, 'duration audio', duration.full, '-', duration.sec, 'sec.');
 
                             console.log(program.id, 'get title audio...');
-                            get_title(entry.video_id).then(title => {
-                                entry.title = string_filter(title);
-                                console.log(program.id, 'title audio', entry.title);
+                            get_title(video_id).then(title => {
+                                console.log(program.id, 'title audio', title);
 
                                 console.log(program.id, 'download audio...');
-                                download_audio(entry.video_id, audio_file_download).then(res => {
+                                download_audio(video_id, audio_file_download).then(res => {
                                     console.log(program.id, res.stdout);
                                     const audio_file = res.audio_file;
 
@@ -331,21 +315,21 @@ const main = program => {
                                         console.log(program.id, 'file size ' + file_size + ' MB');
 
                                         console.log(program.id, 'send to tg...');
-                                        send_audio(audio_file, extract_channel_from_xml(xml), entry, program.tag, duration.sec).then(res => {
+                                        send_audio(audio_file, extract_channel_from_xml(xml), video_id, string_filter(title), program.tag, duration.sec).then(res => {
                                             // console.log(program.id, res);
-                                            save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                            save_and_delete(program, video_id, audio_file).then(() => {
                                                 resolve();
                                             });
                                         }).catch(err => {
                                             console.log(program.id, 'Error (send_audio): not send to tg');
                                             console.log(program.id, err);
-                                            save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                            save_and_delete(program, video_id, audio_file).then(() => {
                                                 resolve();
                                             });
                                         });
                                     }).catch(file_size => {
                                         console.log(program.id, 'Error (get_file_size): file(' + file_size + ') > 50 MB');
-                                        save_and_delete(program, entry.video_id, audio_file).then(() => {
+                                        save_and_delete(program, video_id, audio_file).then(() => {
                                             resolve();
                                         });
                                     });
