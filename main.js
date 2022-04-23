@@ -252,7 +252,7 @@ const send_audio = data => bot.sendAudio(process.env.TELEGRAM_CHANNEL, data.audi
         '*' + data.title + '*',
         '📅 _Опубликовано: ' + new Date().toLocaleDateString('ru-RU') + '_',
         '[Оригинал видео](https://youtu.be/' + data.video_id + ')' + "\n" + '[YouTube канал ' + data.channel.author_name + '](' + data.channel.author_url + ')',
-        (data.tag ? '#' + data.tag + "\n" : '') + process.env.TELEGRAM_CHANNEL,
+        (data.tag ? '#' + data.tag + "\n" : '') + (process.env.TELEGRAM_CHANNEL_URL ? '[' + process.env.TELEGRAM_CHANNEL + '](' + process.env.TELEGRAM_CHANNEL_URL + ')' : process.env.TELEGRAM_CHANNEL),
     ].join("\n\n"),
     'parse_mode': 'markdown',
     'duration': data.duration,
@@ -305,13 +305,12 @@ const main = program => new Promise(resolve => {
                                         title: string_filter(title),
                                         channel: extract_channel_from_xml(xml),
                                     }).then(res => {
-                                        // console.log(program.id, res);
+                                        console.log(program.id, 'message_id', res.message_id);
                                         save_and_delete(program, video_id, audio_file).then(() => {
                                             resolve();
                                         });
                                     }).catch(err => {
-                                        console.log(program.id, 'Error (send_audio): not send to tg');
-                                        console.log(program.id, err);
+                                        console.log(program.id, 'Error (send_audio): not send to tg -', err.statusMessage);
                                         save_and_delete(program, video_id, audio_file).then(() => {
                                             resolve();
                                         });
@@ -323,20 +322,20 @@ const main = program => new Promise(resolve => {
                                     });
                                 });
                             }).catch(err => {
-                                console.log(program.id, 'Error (download_audio): ' + err);
+                                console.log(program.id, 'Error (download_audio):', err);
                                 save_after_error(program, err.toString()).then(() => {
                                     resolve();
                                 });
                             });
                         });
                     }).catch(err => {
-                        console.log(program.id, 'Error (get_duration): ' + err);
+                        console.log(program.id, 'Error (get_duration):', err);
                         save_after_error(program, err.toString()).then(() => {
                             resolve();
                         });
                     });
                 }).catch(err => {
-                    console.log(program.id, 'Error (get_filename): ' + err);
+                    console.log(program.id, 'Error (get_filename):', err);
                     save_after_error(program, err.toString()).then(() => {
                         resolve();
                     });
