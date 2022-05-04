@@ -440,14 +440,15 @@ const main = program => new Promise(resolve => {
 
     // Run check and download audio from channels
     if (!args[0]) {
-        const programs = await Programs.findAll({
-            where: {
-                state: 0,
-            },
-        });
+        const programs = await Programs.findAll();
         let runs = [];
         for (let program of programs) {
-            runs.push(main(program));
+            if (program.state === 1 && new Date() - new Date(program.updatedAt) > 2 * 60 * 60 * 1000) {
+                program.state = 0;
+                await program.save();
+            } else if (program.state === 0) {
+                runs.push(main(program));
+            }
         }
         Promise.all(runs).then(() => {
             console.log('finish');
