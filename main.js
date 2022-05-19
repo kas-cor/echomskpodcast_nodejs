@@ -271,7 +271,7 @@ const send_audio = data => bot.sendAudio(process.env.TELEGRAM_CHANNEL, data.audi
 const main = program => new Promise(resolve => {
     console.log(program.id, 'get xml', program.url, program.tag);
     get_xml(program.url).then(xml => {
-        const video_id = xml.feed.entry[program.index]['yt:videoId'];
+        const video_id = !!(xml.feed.entry).length ? xml.feed.entry[program.index]['yt:videoId'] : xml.feed.entry['yt:videoId'];
         if (!video_id_is_present(video_id, program.video_ids)) {
             save_before_download(program).then(() => {
 
