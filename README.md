@@ -75,50 +75,17 @@ npm run start
 
 ### Запуск в Docker контейнере
 
-#### Запуск
-
 ```bash
 docker-compose up -d
 ```
 
-#### Список каналов
+#### Исполнение команд
 
+```bash
+docker-compose exec echomskpodcast <команда>
+```
+
+Например (Список каналов):
 ```bash
 docker-compose exec echomskpodcast node main.js list
-```
-
-#### Добавление канала
-
-```bash
-docker-compose exec echomskpodcast node main.js add {channel_id}[|{channel_id}]
-```
-
-#### Удаление канала
-
-```bash
-docker-compose exec echomskpodcast node main.js remove {id}
-```
-
-#### Назначение тега каналу
-
-```bash
-docker-compose exec echomskpodcast node main.js tag {id} {tagName}
-```
-
-#### Сброс всех статусов
-
-```bash
-docker-compose exec echomskpodcast node main.js reset_all_states
-```
-
-#### Сброс конкретного статуса
-
-```bash
-docker-compose exec echomskpodcast node main.js reset_state {id}
-```
-
-#### Сброс IDs канала
-
-```bash
-docker-compose exec echomskpodcast node main.js reset_ids {id}
 ```
