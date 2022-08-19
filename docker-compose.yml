@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  echomskpodcast:
+    build: .
+    container_name: 'echomskpodcast'
+    restart: 'always'
+    volumes:
+      - .:/app
