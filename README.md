@@ -1,4 +1,4 @@
-## Канал в телеграмм [@echomskpodcast](https://t.me/echomskpodcast)
+## Канал в телеграм [@echomskpodcast](https://t.me/echomskpodcast)
 
 Скрипт для получение аудио с YouTube каналов и отправки его в канал через бота.
 
