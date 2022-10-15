@@ -1,4 +1,4 @@
-require('dotenv').config()
+require('dotenv').config();
 
 const https = require('https');
 const path = require('path');
