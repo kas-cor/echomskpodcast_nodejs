@@ -22,7 +22,8 @@ jobs:
             cd echomskpodcast
             git reset --hard HEAD
             git pull origin main
-            npm install
+            npm update
+            yt-dlp -U
             git add --all
-            git commit -m 'npm instal'
+            git commit -m 'npm update'
             git push origin main

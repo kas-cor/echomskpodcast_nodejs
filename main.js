@@ -4,6 +4,7 @@ const https = require('https');
 const path = require('path');
 const fs = require('fs');
 
+
 const TelegramBot = require('node-telegram-bot-api');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -18,7 +19,7 @@ const database = require('./db');
 const Programs = require('./Programs');
 
 const {exec} = require('child_process');
-const exec_regular_params = 'youtube-dl -x --no-progress --no-check-certificate --restrict-filenames';
+const exec_regular_params = 'yt-dlp -x --no-progress --no-check-certificate --restrict-filenames';
 const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
@@ -129,7 +130,10 @@ const save_and_delete = (program, video_id = null, filepath = null) => new Promi
         if (filepath) {
             fs.unlink(filepath, () => {
                 console.log(program.id, 'delete ' + filepath);
-                resolve();
+                fs.unlink(filepath.replace('.mp3', ''), () => {
+                    console.log(program.id, 'delete ' + filepath.replace('.mp3', ''));
+                    resolve();
+                });
             });
         } else {
             resolve();
@@ -219,7 +223,7 @@ const get_title = video_id => youtube_dl(exec_get_title.replace('{video_id}', vi
 const download_audio = (video_id, audio_file_download) => youtube_dl(exec_download.replace('{output_file}', audio_file_download).replace('{video_id}', video_id)).then(res => {
     return {
         stdout: res,
-        audio_file: __dirname + '/audio/' + video_id + '.mp3',
+        audio_file: audio_file_download + '.mp3',
     };
 });
 
