@@ -1,4 +1,4 @@
-name: Node.js CI
+name: deploy
 
 on:
   push:
@@ -7,23 +7,13 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-
+  echomskpodcast:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Run a command remotely
-        uses: docker://evaneos/ssh-action:0.1.0
+      - name: Deploy
+        uses: garygrossgarten/github-action-ssh@release
         with:
-          hosts: ${{ secrets.HOST }}
-          user: ${{ secrets.USER }}
-          private_key: ${{ secrets.PRIVATE_KEY }}
-          commands: |
-            cd echomskpodcast
-            git reset --hard HEAD
-            git pull origin main
-            npm update
-            yt-dlp -U
-            git add --all
-            git commit -m 'npm update'
-            git push origin main
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          privateKey: ${{ secrets.PRIVATE_KEY }}
+          command: su fastuser -c "cd ~/echomskpodcast && git reset --hard HEAD && git pull origin main && npm update && yt-dlp -U && git add --all && git commit -m 'npm update' && git push origin main"
