@@ -1,6 +1,6 @@
 FROM node:current-alpine3.16
 
-RUN apk add --no-cache youtube-dl ffmpeg
+RUN apk add --no-cache yt-dlp ffmpeg
 RUN echo '*/5 * * * * cd /app && node main.js' > /etc/crontabs/root
 
 WORKDIR /app

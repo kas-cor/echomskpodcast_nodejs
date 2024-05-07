@@ -53,7 +53,9 @@ const string_filter = text => {
         '_': ' ',
     };
     for (const search in replace) {
-        text = text.replaceAll(search, replace[search]);
+        if (replace.hasOwnProperty(search)) {
+            text = text.replaceAll(search, replace[search]);
+        }
     }
 
     return text.trim();
