@@ -9,11 +9,10 @@ cp .env.sample .env
 npm update
 ```
 
-#### Скачивание yt-dlp
+#### Установка/обновление yt-dlp
 
 ```bash
-wget https://github.com/yt-dlp/yt-dlp/releases/download/2024.08.01/yt-dlp_linux -O ./yt-dlp \
-  && chmod +x ./yt-dlp
+wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -O ./yt-dlp && chmod +x ./yt-dlp
 ```
 
 #### Авторизация на YouTube

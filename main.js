@@ -19,7 +19,7 @@ const database = require('./db');
 const Programs = require('./Programs');
 
 const {exec} = require('child_process');
-const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --username oauth2 --password ""';
+const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --username oauth2 --password "" --retry-sleep fragment:exp=1:20 --extractor-args "youtube:player_client=android"';
 const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
@@ -237,7 +237,9 @@ const download_audio = (video_id, audio_file_download) => youtube_dl(exec_downlo
  * @returns {Promise<unknown>}
  */
 const get_file_size = filename => new Promise((resolve, reject) => {
+    sleep.sleep(5);
     fs.stat(filename, (err, stats) => {
+        sleep.sleep(5);
         if (err) {
             reject(0);
         } else if (stats) {
