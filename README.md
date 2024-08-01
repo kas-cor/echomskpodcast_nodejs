@@ -9,9 +9,22 @@ cp .env.sample .env
 npm update
 ```
 
+#### Скачивание yt-dlp
+
+```bash
+wget https://github.com/yt-dlp/yt-dlp/releases/download/2024.08.01/yt-dlp_linux -O ./yt-dlp \
+  && chmod +x ./yt-dlp
+```
+
+#### Авторизация на YouTube
+
+```bash
+./yt-dlp https://www.youtube.com/watch?v=MvsAesQ-4zA --username oauth2 --password ""
+```
+
 Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор. 
 
-### Использование
+##### Использование
 
 #### Вызов справки
 

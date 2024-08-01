@@ -1,8 +1,8 @@
 require('dotenv').config();
 
-const https = require('https');
-const path = require('path');
-const fs = require('fs');
+const https = require('node:https');
+const path = require('node:path');
+const fs = require('node:fs');
 
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -19,7 +19,7 @@ const database = require('./db');
 const Programs = require('./Programs');
 
 const {exec} = require('child_process');
-const exec_regular_params = 'yt-dlp -x --no-progress --no-check-certificate --restrict-filenames';
+const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --username oauth2 --password ""';
 const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
@@ -238,12 +238,15 @@ const get_file_size = filename => new Promise((resolve, reject) => {
     fs.stat(filename, (err, stats) => {
         if (err) {
             reject(0);
-        }
-        const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
-        if (size_mb <= 50) {
-            resolve(size_mb);
+        } else if (stats) {
+            const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
+            if (size_mb <= 50) {
+                resolve(size_mb);
+            } else {
+                reject(size_mb);
+            }
         } else {
-            reject(size_mb);
+            reject(0);
         }
     });
 });

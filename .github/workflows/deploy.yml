@@ -16,4 +16,4 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           privateKey: ${{ secrets.PRIVATE_KEY }}
-          command: su fastuser -c "cd ~/echomskpodcast && git reset --hard HEAD && git pull origin main && npm update && yt-dlp -U && git add --all && git commit -m 'npm update' && git push origin main"
+          command: su fastuser -c "cd ~/echomskpodcast && git reset --hard HEAD && git pull origin main && npm update && ./yt-dlp -U && git add --all && git commit -m 'npm update' && git push origin main"
