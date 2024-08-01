@@ -175,6 +175,7 @@ const save_before_download = program => {
 const youtube_dl = command => new Promise((resolve, reject) => {
     sleep.sleep(3);
     exec(command, (err, stdout) => {
+        sleep.sleep(3);
         if (err) {
             reject(err.toString().trim());
         }
