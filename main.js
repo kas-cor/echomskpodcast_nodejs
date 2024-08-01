@@ -19,7 +19,7 @@ const database = require('./db');
 const Programs = require('./Programs');
 
 const {exec} = require('child_process');
-const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --username oauth2 --password ""';
+const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --sleep-interval 2 --username oauth2 --password ""';
 const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
