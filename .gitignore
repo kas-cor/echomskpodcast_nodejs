@@ -10,3 +10,4 @@ node_modules/
 # Database file
 database.sqlite
 yt-dlp
+cookies.txt

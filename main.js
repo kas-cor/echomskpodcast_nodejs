@@ -8,6 +8,8 @@ const sleep = require('sleep');
 const TelegramBot = require('node-telegram-bot-api');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
 
+const po_token = process.env.YOUTUBE_PO_TOKEN;
+;
 const {XMLParser} = require('fast-xml-parser');
 const parser = new XMLParser({
     ignoreAttributes: false,
@@ -19,11 +21,11 @@ const database = require('./db');
 const Programs = require('./Programs');
 
 const {exec} = require('child_process');
-const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --username oauth2 --password "" --retry-sleep fragment:exp=1:20 --extractor-args "youtube:player_client=android"';
-const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
-const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
-const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
-const exec_download = exec_regular_params + ' -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
+const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --cookies ./cookies.txt --retry-sleep fragment:exp=1:20 --extractor-args "youtube:player-client=web,default;po_token=web+{po_token}"';
+const exec_get_filename = exec_regular_params.replace('{po_token}', po_token) + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_duration = exec_regular_params.replace('{po_token}', po_token) + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_title = exec_regular_params.replace('{po_token}', po_token) + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
+const exec_download = exec_regular_params.replace('{po_token}', po_token) + ' -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
 
