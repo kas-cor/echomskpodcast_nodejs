@@ -8,8 +8,6 @@ const sleep = require('sleep');
 const TelegramBot = require('node-telegram-bot-api');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN);
 
-const po_token = process.env.YOUTUBE_PO_TOKEN;
-;
 const {XMLParser} = require('fast-xml-parser');
 const parser = new XMLParser({
     ignoreAttributes: false,
@@ -21,11 +19,11 @@ const database = require('./db');
 const Programs = require('./Programs');
 
 const {exec} = require('child_process');
-const exec_regular_params = './yt-dlp -x --no-progress --no-check-certificate --restrict-filenames --cookies ./cookies.txt --retry-sleep fragment:exp=1:20 --extractor-args "youtube:player-client=web,default;po_token=web+{po_token}"';
-const exec_get_filename = exec_regular_params.replace('{po_token}', po_token) + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
-const exec_get_duration = exec_regular_params.replace('{po_token}', po_token) + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
-const exec_get_title = exec_regular_params.replace('{po_token}', po_token) + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
-const exec_download = exec_regular_params.replace('{po_token}', po_token) + ' -f worstaudio --audio-format mp3 --audio-quality 9 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
+const exec_regular_params = './yt-dlp';
+const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
+const exec_download = exec_regular_params + ' -f "wa / ba" --audio-format mp3 --audio-quality 10 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
 
@@ -132,6 +130,7 @@ const save_and_delete = (program, video_id = null, filepath = null) => new Promi
     }
     program.save().then(() => {
         if (filepath) {
+resolve();
             fs.unlink(filepath, () => {
                 console.log(program.id, 'delete ' + filepath);
                 fs.unlink(filepath.replace('.mp3', ''), () => {
@@ -193,6 +192,9 @@ const youtube_dl = command => new Promise((resolve, reject) => {
 const get_filename = video_id => youtube_dl(exec_get_filename.replace('{video_id}', video_id)).then(res => {
     return __dirname + '/audio/' + video_id + '.' + res.split('.').reverse()[0];
 });
+const get_filename_simple = video_id => new Promise(resolve => {
+resolve(__dirname + '/audio/' + video_id + '.mp3');
+});
 
 /**
  * Get duration audio
@@ -229,7 +231,7 @@ const get_title = video_id => youtube_dl(exec_get_title.replace('{video_id}', vi
 const download_audio = (video_id, audio_file_download) => youtube_dl(exec_download.replace('{output_file}', audio_file_download).replace('{video_id}', video_id)).then(res => {
     return {
         stdout: res,
-        audio_file: audio_file_download + '.mp3',
+        audio_file: audio_file_download,
     };
 });
 
@@ -243,6 +245,7 @@ const get_file_size = filename => new Promise((resolve, reject) => {
     fs.stat(filename, (err, stats) => {
         sleep.sleep(5);
         if (err) {
+console.log('get_file_size: ', filename, err);
             reject(0);
         } else if (stats) {
             const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
@@ -291,7 +294,7 @@ const main = program => new Promise(resolve => {
             save_before_download(program).then(() => {
 
                 console.log(program.id, 'get filename audio...');
-                get_filename(video_id).then(audio_file_download => {
+                get_filename_simple(video_id).then(audio_file_download => {
                     console.log(program.id, 'filename audio', audio_file_download);
 
                     console.log(program.id, 'get duration audio...');
