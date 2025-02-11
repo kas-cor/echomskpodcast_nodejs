@@ -18,7 +18,7 @@ wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -O .
 #### Установка Token PO провайдера
 
 ```bash
-docker run -it -p 8080:8080 quay.io/invidious/youtube-trusted-session-generator:webserver
+docker run -p 8080:8080 quay.io/invidious/youtube-trusted-session-generator:webserver
 ```
 
 Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор. 
