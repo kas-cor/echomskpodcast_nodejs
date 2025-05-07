@@ -1,3 +1,0 @@
-[submodule "libfoo"]
-	path = yt-dlp-plugins
-	url = https://github.com/coletdjnz/yt-dlp-youtube-oauth2.git

@@ -131,7 +131,7 @@ const save_and_delete = (program, video_id = null, filepath = null) => new Promi
     }
     program.save().then(() => {
         if (filepath) {
-resolve();
+            resolve();
             fs.unlink(filepath, () => {
                 console.log(program.id, 'delete ' + filepath);
                 fs.unlink(filepath.replace('.mp3', ''), () => {
@@ -194,7 +194,7 @@ const get_filename = video_id => youtube_dl(exec_get_filename.replace('{video_id
     return __dirname + '/audio/' + video_id + '.' + res.split('.').reverse()[0];
 });
 const get_filename_simple = video_id => new Promise(resolve => {
-resolve(__dirname + '/audio/' + video_id + '.mp3');
+    resolve(__dirname + '/audio/' + video_id + '.mp3');
 });
 
 /**
@@ -246,7 +246,7 @@ const get_file_size = filename => new Promise((resolve, reject) => {
     fs.stat(filename, (err, stats) => {
         sleep.sleep(5);
         if (err) {
-console.log('get_file_size: ', filename, err);
+            console.log('get_file_size: ', filename, err);
             reject(0);
         } else if (stats) {
             const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
