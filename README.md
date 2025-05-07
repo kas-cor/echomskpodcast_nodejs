@@ -21,6 +21,19 @@ wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -O .
 docker run -p 8080:8080 quay.io/invidious/youtube-trusted-session-generator:webserver
 ```
 
+#### Установка локального сервера Telegram Bot API
+
+```bash
+docker run -d --name telegram-bot-api \
+  -p 8081:8081 \
+  -v /root/telegram-bot-api:/var/lib/telegram-bot-api \
+  -e TELEGRAM_API_ID=your_api_id \
+  -e TELEGRAM_API_HASH=your_api_hash \
+  -e LOCAL=1 \
+  --restart unless-stopped \
+  aiogram/telegram-bot-api:latest
+```
+
 Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор. 
 
 ### Использование

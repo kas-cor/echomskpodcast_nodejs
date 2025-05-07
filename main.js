@@ -6,8 +6,9 @@ const fs = require('node:fs');
 const sleep = require('sleep');
 
 const TelegramBot = require('node-telegram-bot-api');
-const entrypoint = process.env.TELEGRAM_ENTRYPOINT || 'https://api.telegram.org';
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {baseApiUrl: entrypoint});
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+    baseApiUrl: process.env.TELEGRAM_ENTRYPOINT || 'https://api.telegram.org',
+});
 
 const {XMLParser} = require('fast-xml-parser');
 const parser = new XMLParser({
@@ -21,7 +22,6 @@ const Programs = require('./Programs');
 
 const {exec} = require('child_process');
 const exec_regular_params = './yt-dlp';
-const exec_get_filename = exec_regular_params + ' --get-filename "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
 const exec_download = exec_regular_params + ' -f ba --audio-format mp3 --audio-quality 0 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
@@ -190,10 +190,7 @@ const youtube_dl = command => new Promise((resolve, reject) => {
  * @param {string} video_id Uniq video ID
  * @returns {Promise<unknown>}
  */
-const get_filename = video_id => youtube_dl(exec_get_filename.replace('{video_id}', video_id)).then(res => {
-    return __dirname + '/audio/' + video_id + '.' + res.split('.').reverse()[0];
-});
-const get_filename_simple = video_id => new Promise(resolve => {
+const get_filename = video_id => new Promise(resolve => {
     resolve(__dirname + '/audio/' + video_id + '.mp3');
 });
 
@@ -237,31 +234,6 @@ const download_audio = (video_id, audio_file_download) => youtube_dl(exec_downlo
 });
 
 /**
- * Get file size
- * @param {string} filename Filename audio
- * @returns {Promise<unknown>}
- */
-const get_file_size = filename => new Promise((resolve, reject) => {
-    sleep.sleep(5);
-    fs.stat(filename, (err, stats) => {
-        sleep.sleep(5);
-        if (err) {
-            console.log('get_file_size: ', filename, err);
-            reject(0);
-        } else if (stats) {
-            const size_mb = parseFloat((stats.size / 1024 / 1024).toFixed(2));
-            if (size_mb <= 50) {
-                resolve(size_mb);
-            } else {
-                reject(size_mb);
-            }
-        } else {
-            reject(0);
-        }
-    });
-});
-
-/**
  * Send audio message in Telegram
  * @param {object} data Object whit data
  * @returns {Promise<unknown>}
@@ -271,7 +243,7 @@ const send_audio = data => bot.sendAudio(process.env.TELEGRAM_CHANNEL, data.audi
         '*' + data.title + '*',
         '📅 _Опубликовано: ' + new Date().toLocaleDateString('ru-RU') + '_',
         '[Оригинал видео](https://youtu.be/' + data.video_id + ')' + "\n" + '[YouTube канал ' + data.channel.author_name + '](' + data.channel.author_url + ')',
-        (data.tag ? '#' + data.tag + "\n" : '') + (process.env.TELEGRAM_CHANNEL_URL ? '[' + process.env.TELEGRAM_CHANNEL + '](' + process.env.TELEGRAM_CHANNEL_URL + ')' : process.env.TELEGRAM_CHANNEL),
+        (data.tag ? '#' + data.tag + "\n" : '') + (process.env.TELEGRAM_CHANNEL_URL ? '[' + process.env.TELEGRAM_CHANNEL + '](' + process.env.TELEGRAM_CHANNEL_URL + ')' : process.env.TELEGRAM_CHANNEL) + (process.env.TELEGRAM_CHANNEL_BOOST_URL ? "\n" + '[Буст каналу](' + process.env.TELEGRAM_CHANNEL_BOOST_URL + ')' : ''),
     ].join("\n\n"),
     'parse_mode': 'markdown',
     'duration': data.duration,
@@ -295,7 +267,7 @@ const main = program => new Promise(resolve => {
             save_before_download(program).then(() => {
 
                 console.log(program.id, 'get filename audio...');
-                get_filename_simple(video_id).then(audio_file_download => {
+                get_filename(video_id).then(audio_file_download => {
                     console.log(program.id, 'filename audio', audio_file_download);
 
                     console.log(program.id, 'get duration audio...');
@@ -310,36 +282,25 @@ const main = program => new Promise(resolve => {
                             download_audio(video_id, audio_file_download).then(res => {
                                 console.log(program.id, res.stdout);
                                 const audio_file = res.audio_file;
-
-                                //console.log(program.id, 'get file size...');
-                                //get_file_size(audio_file).then(file_size => {
-                                    //console.log(program.id, 'file size ' + file_size + ' MB');
-
-                                    console.log(program.id, 'send to tg...');
-                                    send_audio({
-                                        audio_file: audio_file,
-                                        video_id: video_id,
-                                        tag: program.tag,
-                                        duration: duration.sec,
-                                        title: string_filter(title),
-                                        channel: extract_channel_from_xml(xml),
-                                    }).then(res => {
-                                        console.log(program.id, 'message_id', res.message_id);
-                                        save_and_delete(program, video_id, audio_file).then(() => {
-                                            resolve();
-                                        });
-                                    }).catch(err => {
-                                        console.log(program.id, 'Error (send_audio): not send to tg -', err.statusMessage, err);
-                                        save_and_delete(program, video_id, audio_file).then(() => {
-                                            resolve();
-                                        });
+                                console.log(program.id, 'send to tg...');
+                                send_audio({
+                                    audio_file: audio_file,
+                                    video_id: video_id,
+                                    tag: program.tag,
+                                    duration: duration.sec,
+                                    title: string_filter(title),
+                                    channel: extract_channel_from_xml(xml),
+                                }).then(res => {
+                                    console.log(program.id, 'message_id', res.message_id);
+                                    save_and_delete(program, video_id, audio_file).then(() => {
+                                        resolve();
                                     });
-                                //}).catch(file_size => {
-                                //    console.log(program.id, 'Error (get_file_size): file(' + file_size + ') > 50 MB');
-                                //    save_and_delete(program, video_id, audio_file).then(() => {
-                                //        resolve();
-                                //    });
-                                //});
+                                }).catch(err => {
+                                    console.log(program.id, 'Error (send_audio): not send to tg -', err);
+                                    save_and_delete(program, video_id, audio_file).then(() => {
+                                        resolve();
+                                    });
+                                });
                             }).catch(err => {
                                 console.log(program.id, 'Error (download_audio):', err);
                                 save_after_error(program, err.toString()).then(() => {
