@@ -22,9 +22,9 @@ const Programs = require('./Programs');
 
 const {spawn} = require('child_process');
 const exec_yt_dlp = './yt-dlp';
-const exec_get_duration = '--get-duration ytsearch:"https://www.youtube.com/watch?v={video_id}"';
-const exec_get_title = '--get-title ytsearch:"https://www.youtube.com/watch?v={video_id}"';
-const exec_download = '-f ba --audio-format mp3 --embed-thumbnail -o {output_file} ytsearch:"https://www.youtube.com/watch?v={video_id}"';
+const exec_get_duration = '--get-duration ytsearch:"{video_id}"';
+const exec_get_title = '--get-title ytsearch:"{video_id}"';
+const exec_download = '-f ba --audio-format mp3 --embed-thumbnail -o {output_file} ytsearch:"{video_id}"';
 
 // Functions
 
@@ -178,21 +178,24 @@ const youtube_dl = params => new Promise((resolve, reject) => {
     sleep.sleep(5);
     const child = spawn(exec_yt_dlp, params.split(' '));
 
+    let output = '';
+    let errorOutput = '';
+
+    child.stdout.on('data', data => {
+        output += data.toString();
+    });
+
     child.stderr.on('data', data => {
-        reject(data.toString().trim());
+        errorOutput += data.toString();
     });
 
     child.on('close', code => {
-        resolve(code.toString().trim());
+        if (code === 0) {
+            resolve(output.trim());
+        } else {
+            reject(errorOutput.trim());
+        }
     });
-
-    // exec(command, (err, stdout) => {
-    //     sleep.sleep(5);
-    //     if (err) {
-    //         reject(err.toString().trim());
-    //     }
-    //     resolve(stdout.toString().trim());
-    // });
 });
 
 /**
