@@ -22,9 +22,9 @@ const Programs = require('./Programs');
 
 const {spawn} = require('child_process');
 const exec_yt_dlp = './yt-dlp';
-const exec_get_duration = '--get-duration "https://www.youtube.com/watch?v={video_id}"';
-const exec_get_title = '--get-title "https://www.youtube.com/watch?v={video_id}"';
-const exec_download = '-f ba --audio-format mp3 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_duration = '--get-duration ytsearch:"https://www.youtube.com/watch?v={video_id}"';
+const exec_get_title = '--get-title ytsearch:"https://www.youtube.com/watch?v={video_id}"';
+const exec_download = '-f ba --audio-format mp3 --embed-thumbnail -o {output_file} ytsearch:"https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
 
@@ -171,7 +171,7 @@ const save_before_download = program => {
 
 /**
  * Execute youtube_dl command
- * @param {string} command Execute command
+ * @param {string} params Execute command
  * @returns {Promise<unknown>}
  */
 const youtube_dl = params => new Promise((resolve, reject) => {
