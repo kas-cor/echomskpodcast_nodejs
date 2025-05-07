@@ -20,11 +20,11 @@ const parser = new XMLParser({
 const database = require('./db');
 const Programs = require('./Programs');
 
-const {exec, spawn} = require('child_process');
-const exec_regular_params = './yt-dlp';
-const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
-const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
-const exec_download = exec_regular_params + ' -f ba --audio-format mp3 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
+const {spawn} = require('child_process');
+const exec_yt_dlp = './yt-dlp';
+const exec_get_duration = '--get-duration "https://www.youtube.com/watch?v={video_id}"';
+const exec_get_title = '--get-title "https://www.youtube.com/watch?v={video_id}"';
+const exec_download = '-f ba --audio-format mp3 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
 
@@ -174,9 +174,9 @@ const save_before_download = program => {
  * @param {string} command Execute command
  * @returns {Promise<unknown>}
  */
-const youtube_dl = command => new Promise((resolve, reject) => {
+const youtube_dl = params => new Promise((resolve, reject) => {
     sleep.sleep(5);
-    const child = spawn(command, []);
+    const child = spawn(exec_yt_dlp, params.split(' '));
 
     child.stderr.on('data', data => {
         reject(data.toString().trim());
