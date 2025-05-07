@@ -20,11 +20,11 @@ const parser = new XMLParser({
 const database = require('./db');
 const Programs = require('./Programs');
 
-const {exec} = require('child_process');
+const {exec, spawn} = require('child_process');
 const exec_regular_params = './yt-dlp';
 const exec_get_duration = exec_regular_params + ' --get-duration "https://www.youtube.com/watch?v={video_id}"';
 const exec_get_title = exec_regular_params + ' --get-title "https://www.youtube.com/watch?v={video_id}"';
-const exec_download = exec_regular_params + ' -f ba --audio-format mp3 --audio-quality 0 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
+const exec_download = exec_regular_params + ' -f ba --audio-format mp3 --embed-thumbnail -o {output_file} "https://www.youtube.com/watch?v={video_id}"';
 
 // Functions
 
@@ -153,7 +153,7 @@ const save_and_delete = (program, video_id = null, filepath = null) => new Promi
  */
 const save_after_error = (program, err) => {
     program.state = 0;
-    if (/ERROR: This live event/im.test(err)) {
+    if (/This live event/im.test(err)) {
         program.index = program.index + 1;
     }
     return program.save();
@@ -176,13 +176,23 @@ const save_before_download = program => {
  */
 const youtube_dl = command => new Promise((resolve, reject) => {
     sleep.sleep(5);
-    exec(command, (err, stdout) => {
-        sleep.sleep(5);
-        if (err) {
-            reject(err.toString().trim());
-        }
-        resolve(stdout.toString().trim());
+    const child = spawn(command, []);
+
+    child.stderr.on('data', data => {
+        reject(data.toString().trim());
     });
+
+    child.on('close', code => {
+        resolve(code.toString().trim());
+    });
+
+    // exec(command, (err, stdout) => {
+    //     sleep.sleep(5);
+    //     if (err) {
+    //         reject(err.toString().trim());
+    //     }
+    //     resolve(stdout.toString().trim());
+    // });
 });
 
 /**
