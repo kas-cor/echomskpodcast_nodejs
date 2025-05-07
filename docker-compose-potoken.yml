@@ -1,0 +1,7 @@
+services:
+  po-token-provider:
+    image: quay.io/invidious/youtube-trusted-session-generator:webserver
+    container_name: po-token-provider
+    ports:
+      - "${POTOKEN_PROVIDER_PORT-8080}:8080"
+    restart: unless-stopped

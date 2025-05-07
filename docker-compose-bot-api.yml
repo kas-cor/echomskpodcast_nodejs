@@ -1,21 +1,13 @@
 services:
-  echomskpodcast:
-    build: .
-    container_name: echomskpodcast
-    restart: unless-stopped
-    volumes:
-      - .:/app
   telegram-bot-api:
     image: aiogram/telegram-bot-api:latest
     container_name: telegram-bot-api
+    ports:
+      - "${TELEGRAM_API_PORT-8081}:8081"
     volumes:
       - ${TELEGRAM_API_DATA-./telegram-bot-api}:/var/lib/telegram-bot-api
     environment:
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - LOCAL=1
-    restart: unless-stopped
-  po-token-provider:
-    image: quay.io/invidious/youtube-trusted-session-generator:webserver
-    container_name: po-token-provider
     restart: unless-stopped

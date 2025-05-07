@@ -11,3 +11,5 @@ node_modules/
 database.sqlite
 yt-dlp
 cookies.txt
+
+telegram-bot-api/

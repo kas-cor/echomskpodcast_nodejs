@@ -9,6 +9,8 @@ cp .env.sample .env
 npm update
 ```
 
+Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор.
+
 #### Установка/обновление yt-dlp
 
 ```bash
@@ -18,23 +20,14 @@ wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -O .
 #### Установка Token PO провайдера
 
 ```bash
-docker run -p 8080:8080 quay.io/invidious/youtube-trusted-session-generator:webserver
+docker compose up -d -f docker-compose-potoken.yml
 ```
 
 #### Установка локального сервера Telegram Bot API
 
 ```bash
-docker run -d --name telegram-bot-api \
-  -p 8081:8081 \
-  -v /root/telegram-bot-api:/var/lib/telegram-bot-api \
-  -e TELEGRAM_API_ID=your_api_id \
-  -e TELEGRAM_API_HASH=your_api_hash \
-  -e LOCAL=1 \
-  --restart unless-stopped \
-  aiogram/telegram-bot-api:latest
+docker compose up -d -f docker-compose-bot-api.yml
 ```
-
-Изменить файл `.env` вписать имя канала начиная с @ и токен бота добавленного в канал как администратор. 
 
 ### Использование
 
@@ -101,7 +94,7 @@ npm run start
 ### Запуск в Docker контейнере
 
 ```bash
-docker-compose up -d
+docker-compose up -d -f docker-compose.yml
 ```
 
 #### Исполнение команд
