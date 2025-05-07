@@ -51,15 +51,15 @@ class ExampleGetPOTProviderRH(GetPOTProvider):  # ⚠ The class name must end in
 
         response_json = json.loads(response.read().decode('utf-8'))
 
-        if 'po_token' not in response_json:
+        if 'potoken' not in response_json:
             # Any error that is thrown must be a subclass of yt_dlp.networking.exceptions.RequestError
-            raise RequestError('Server did not respond with a po_token')
+            raise RequestError('Server did not respond with a potoken')
 
         # Access the logger
-        self._logger.debug(f'Got PO Token: {response_json["po_token"]}')
+        self._logger.debug(f'Got PO Token: {response_json["potoken"]}')
 
         # return the po_token string
-        return response_json['po_token']
+        return response_json['potoken']
 
 
 # If there are multiple GetPOTProvider request handlers that can handle the same request,
