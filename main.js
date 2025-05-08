@@ -271,56 +271,47 @@ const main = program => new Promise(resolve => {
             console.log(program.id, 'get info...');
             get_info(video_id).then(info => {
                 console.log(program.id, 'info:', {is_live: info.is_live, original_url: info.original_url, duration: info.duration, title: info.title});
-                let make_break = false;
-                if (info.is_live === 'True') {
-                    console.log(program.id, 'is live - pass');
-                    make_break = true;
-                }
-                if (info.original_url.includes('shorts')) {
-                    console.log(program.id, 'is shorts - pass');
-                    make_break = true;
-                }
-                if (make_break) {
+                if (info.is_live !== 'True' && !info.original_url.includes('shorts')) {
+                    save_before_download(program).then(() => {
+                        console.log(program.id, 'download audio & thumbnail(resize)...');
+                        download_audio(video_id).then(res => {
+                            const audio_file = res.audio_file;
+                            const thumbnail_file = res.thumbnail_file;
+                            console.log(program.id, res.stdout);
+                            console.log(program.id, 'filenames', audio_file, thumbnail_file);
+                            console.log(program.id, 'send to tg...');
+                            send_audio({
+                                audio_file: audio_file,
+                                video_id: video_id,
+                                tag: program.tag,
+                                duration: info.duration,
+                                title: string_filter(info.title),
+                                channel: extract_channel_from_xml(xml),
+                                thumb: thumbnail_file,
+                            }).then(res => {
+                                console.log(program.id, 'message_id', res.message_id);
+                                save_and_delete(program, video_id).then(() => {
+                                    resolve();
+                                });
+                            }).catch(err => {
+                                console.log(program.id, 'Error (send_audio): not send to tg -', err);
+                                save_and_delete(program, video_id).then(() => {
+                                    resolve();
+                                });
+                            });
+                        }).catch(err => {
+                            console.log(program.id, 'Error (download):', err);
+                            save_after_error(program, err.toString()).then(() => {
+                                resolve();
+                            });
+                        });
+                    });
+                } else {
+                    console.log(program.id, 'is live or shorts - pass');
                     save_and_delete(program).then(() => {
                         resolve();
                     });
-                    return;
                 }
-                save_before_download(program).then(() => {
-                    console.log(program.id, 'duration', info.duration, 'sec.', 'title', info.title);
-                    console.log(program.id, 'download audio & thumbnail(resize)...');
-                    download_audio(video_id).then(res => {
-                        const audio_file = res.audio_file;
-                        const thumbnail_file = res.thumbnail_file;
-                        console.log(program.id, res.stdout);
-                        console.log(program.id, 'filenames', audio_file, thumbnail_file);
-                        console.log(program.id, 'send to tg...');
-                        send_audio({
-                            audio_file: audio_file,
-                            video_id: video_id,
-                            tag: program.tag,
-                            duration: info.duration,
-                            title: string_filter(info.title),
-                            channel: extract_channel_from_xml(xml),
-                            thumb: thumbnail_file,
-                        }).then(res => {
-                            console.log(program.id, 'message_id', res.message_id);
-                            save_and_delete(program, video_id).then(() => {
-                                resolve();
-                            });
-                        }).catch(err => {
-                            console.log(program.id, 'Error (send_audio): not send to tg -', err);
-                            save_and_delete(program, video_id).then(() => {
-                                resolve();
-                            });
-                        });
-                    }).catch(err => {
-                        console.log(program.id, 'Error (download_audio):', err);
-                        save_after_error(program, err.toString()).then(() => {
-                            resolve();
-                        });
-                    });
-                });
             }).catch(err => {
                 console.log(program.id, 'get info error:', err);
                 save_after_error(program, err.toString()).then(() => {
