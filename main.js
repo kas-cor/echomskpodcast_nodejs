@@ -24,7 +24,7 @@ const Programs = require('./Programs');
 const {spawn} = require('child_process');
 const exec_yt_dlp = './yt-dlp';
 const exec_get_info = '-j ytsearch:"{video_id}"';
-const exec_download = '-f ba --audio-format mp3 --audio-quality 0 --write-thumbnail --embed-thumbnail -o {output_audio_file} ytsearch:"{video_id}"';
+const exec_download = '-f ba --audio-format mp3 --write-thumbnail --embed-thumbnail -o {output_audio_file} ytsearch:"{video_id}"';
 
 // Functions
 
@@ -210,7 +210,10 @@ const youtube_dl = params => new Promise((resolve, reject) => {
  * @param {string} video_id Uniq video ID
  * @returns {Promise<unknown>}
  */
-const get_info = video_id => youtube_dl(exec_get_info.replace('{video_id}', video_id)).then(res => JSON.parse(res));
+const get_info = video_id => youtube_dl(exec_get_info.replace('{video_id}', video_id)).then(res => {
+    console.log('JSON', res);
+    return JSON.parse(res);
+});
 
 /**
  * Download audio
@@ -242,7 +245,11 @@ const send_audio = data => bot.sendAudio(process.env.TELEGRAM_CHANNEL, data.audi
         '*' + data.title + '*',
         '📅 _Опубликовано: ' + new Date().toLocaleDateString('ru-RU') + '_',
         '[Оригинал видео](https://youtu.be/' + data.video_id + ')' + "\n" + '[YouTube канал ' + data.channel.author_name + '](' + data.channel.author_url + ')',
-        (data.tag ? '#' + data.tag + ' | ' : '') + (process.env.TELEGRAM_CHANNEL_URL ? '[' + process.env.TELEGRAM_CHANNEL + '](' + process.env.TELEGRAM_CHANNEL_URL + ')' : process.env.TELEGRAM_CHANNEL) + (process.env.TELEGRAM_CHANNEL_BOOST_URL ? ' | [Буст каналу](' + process.env.TELEGRAM_CHANNEL_BOOST_URL + ')' : ''),
+        [
+            data.tag ? '#' + data.tag : null,
+            process.env.TELEGRAM_CHANNEL_URL ? '[' + process.env.TELEGRAM_CHANNEL + '](' + process.env.TELEGRAM_CHANNEL_URL + ')' : process.env.TELEGRAM_CHANNEL,
+            process.env.TELEGRAM_CHANNEL_BOOST_URL ? ' | [Буст каналу](' + process.env.TELEGRAM_CHANNEL_BOOST_URL + ')' : null,
+        ].filter(Boolean).join("\n"),
     ].join("\n\n"),
     'parse_mode': 'markdown',
     'duration': data.duration,
@@ -315,6 +322,11 @@ const main = program => new Promise(resolve => {
                             resolve();
                         });
                     });
+                });
+            }).catch(err => {
+                console.log(program.id, 'get info error:', err);
+                save_after_error(program, err.toString()).then(() => {
+                    resolve();
                 });
             });
         } else {
