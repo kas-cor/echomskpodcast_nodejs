@@ -210,10 +210,7 @@ const youtube_dl = params => new Promise((resolve, reject) => {
  * @param {string} video_id Uniq video ID
  * @returns {Promise<unknown>}
  */
-const get_info = video_id => youtube_dl(exec_get_info.replace('{video_id}', video_id)).then(res => {
-    console.log('JSON', res);
-    return JSON.parse(res);
-});
+const get_info = video_id => youtube_dl(exec_get_info.replace('{video_id}', video_id)).then(res => JSON.parse(res));
 
 /**
  * Download audio
@@ -248,7 +245,7 @@ const send_audio = data => bot.sendAudio(process.env.TELEGRAM_CHANNEL, data.audi
         [
             data.tag ? '#' + data.tag : null,
             process.env.TELEGRAM_CHANNEL_URL ? '[' + process.env.TELEGRAM_CHANNEL + '](' + process.env.TELEGRAM_CHANNEL_URL + ')' : process.env.TELEGRAM_CHANNEL,
-            process.env.TELEGRAM_CHANNEL_BOOST_URL ? ' | [Буст каналу](' + process.env.TELEGRAM_CHANNEL_BOOST_URL + ')' : null,
+            process.env.TELEGRAM_CHANNEL_BOOST_URL ? '[Буст каналу](' + process.env.TELEGRAM_CHANNEL_BOOST_URL + ')' : null,
         ].filter(Boolean).join("\n"),
     ].join("\n\n"),
     'parse_mode': 'markdown',
