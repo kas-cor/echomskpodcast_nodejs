@@ -270,6 +270,7 @@ const main = program => new Promise(resolve => {
         if (!video_id_is_present(video_id, program.video_ids)) {
             console.log(program.id, 'get info...');
             get_info(video_id).then(info => {
+                console.log(program.id, 'info:', {is_live: info.is_live, original_url: info.original_url, duration: info.duration, title: info.title});
                 let make_break = false;
                 if (info.is_live === 'True') {
                     console.log(program.id, 'is live - pass');
