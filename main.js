@@ -271,7 +271,7 @@ const main = program => new Promise(resolve => {
             console.log(program.id, 'get info...');
             get_info(video_id).then(info => {
                 console.log(program.id, 'info:', {is_live: info.is_live, original_url: info.original_url, duration: info.duration, title: info.title});
-                if (info.is_live !== 'True' && !info.original_url.includes('shorts')) {
+                if (!info.is_live && !info.original_url.includes('shorts')) {
                     save_before_download(program).then(() => {
                         console.log(program.id, 'download audio & thumbnail(resize)...');
                         download_audio(video_id).then(res => {
