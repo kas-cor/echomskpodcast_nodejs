@@ -3,7 +3,7 @@ require('dotenv').config();
 const https = require('node:https');
 const path = require('node:path');
 const fs = require('node:fs');
-const sleep = require('sleep');
+const { promises: fsPromises } = require('node:fs');
 const sharp = require('sharp');
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -129,21 +129,21 @@ const save_and_delete = (program, video_id = null) => new Promise(resolve => {
     if (video_id) {
         program.video_ids = add_new_video_id(video_id, program.video_ids);
     }
-    program.save().then(() => {
+    program.save().then(async () => {
         if (video_id) {
-            let filepath = __dirname + '/audio/' + video_id + '.mp3';
+            let filepath = path.join(__dirname, 'audio', video_id + '.mp3');
             try {
-                fs.unlinkSync(filepath);
+                await fsPromises.unlink(filepath);
                 console.log(program.id, 'delete ' + filepath);
             } catch (e) {
             }
             try {
-                fs.unlinkSync(filepath + '.webp');
+                await fsPromises.unlink(filepath + '.webp');
                 console.log(program.id, 'delete ' + filepath + '.webp');
             } catch (e) {
             }
             try {
-                fs.unlinkSync(filepath + '.jpg');
+                await fsPromises.unlink(filepath + '.jpg');
                 console.log(program.id, 'delete ' + filepath + '.jpg');
             } catch (e) {
             }
@@ -181,8 +181,8 @@ const save_before_download = program => {
  * @param {string} params Execute command
  * @returns {Promise<unknown>}
  */
-const youtube_dl = params => new Promise((resolve, reject) => {
-    sleep.sleep(5);
+const youtube_dl = params => new Promise(async (resolve, reject) => {
+    await new Promise(resolve => setTimeout(resolve, 5000));
     const child = spawn(exec_yt_dlp, params.split(' '));
 
     let output = '';
@@ -263,24 +263,30 @@ const send_audio = data => bot.sendAudio(process.env.TELEGRAM_CHANNEL, data.audi
  * @param {object} program Item from Programs modal
  * @returns {Promise<unknown>}
  */
-const main = program => new Promise(resolve => {
+const main = async program => {
     console.log(program.id, 'get xml', program.url, program.tag);
-    get_xml(program.url).then(xml => {
+    try {
+        const xml = await get_xml(program.url);
         const video_id = !!(xml.feed.entry).length ? xml.feed.entry[program.index]['yt:videoId'] : xml.feed.entry['yt:videoId'];
+
         if (!video_id_is_present(video_id, program.video_ids)) {
             console.log(program.id, 'get info...');
-            get_info(video_id).then(info => {
+            try {
+                const info = await get_info(video_id);
                 console.log(program.id, 'info:', {is_live: info.is_live, original_url: info.original_url, duration: info.duration, title: info.title});
+
                 if (info.duration !== undefined && info.is_live === false && info.original_url.includes('shorts') === false) {
-                    save_before_download(program).then(() => {
-                        console.log(program.id, 'download audio & thumbnail(resize)...');
-                        download_audio(video_id).then(res => {
-                            const audio_file = res.audio_file;
-                            const thumbnail_file = res.thumbnail_file;
-                            console.log(program.id, res.stdout);
-                            console.log(program.id, 'filenames', audio_file, thumbnail_file);
-                            console.log(program.id, 'send to tg...');
-                            send_audio({
+                    await save_before_download(program);
+                    console.log(program.id, 'download audio & thumbnail(resize)...');
+                    try {
+                        const res = await download_audio(video_id);
+                        const audio_file = res.audio_file;
+                        const thumbnail_file = res.thumbnail_file;
+                        console.log(program.id, res.stdout);
+                        console.log(program.id, 'filenames', audio_file, thumbnail_file);
+                        console.log(program.id, 'send to tg...');
+                        try {
+                            const tg_res = await send_audio({
                                 audio_file: audio_file,
                                 video_id: video_id,
                                 tag: program.tag,
@@ -288,44 +294,34 @@ const main = program => new Promise(resolve => {
                                 title: string_filter(info.title),
                                 channel: extract_channel_from_xml(xml),
                                 thumb: thumbnail_file,
-                            }).then(res => {
-                                console.log(program.id, 'message_id', res.message_id);
-                                save_and_delete(program, video_id).then(() => {
-                                    resolve();
-                                });
-                            }).catch(err => {
-                                console.log(program.id, 'Error (send_audio): not send to tg -', err);
-                                save_and_delete(program, video_id).then(() => {
-                                    resolve();
-                                });
                             });
-                        }).catch(err => {
-                            console.log(program.id, 'Error (download):', err);
-                            save_after_error(program, err.toString()).then(() => {
-                                resolve();
-                            });
-                        });
-                    });
+                            console.log(program.id, 'message_id', tg_res.message_id);
+                            await save_and_delete(program, video_id);
+                        } catch (err) {
+                            console.log(program.id, 'Error (send_audio): not send to tg -', err);
+                            await save_and_delete(program, video_id);
+                        }
+                    } catch (err) {
+                        console.log(program.id, 'Error (download):', err);
+                        await save_after_error(program, err.toString());
+                    }
                 } else {
                     console.log(program.id, 'is live or shorts - pass');
-                    save_and_delete(program).then(() => {
-                        resolve();
-                    });
+                    await save_and_delete(program);
                 }
-            }).catch(err => {
+            } catch (err) {
                 console.log(program.id, 'get info error:', err);
-                save_after_error(program, err.toString()).then(() => {
-                    resolve();
-                });
-            });
+                await save_after_error(program, err.toString());
+            }
         } else {
             console.log(program.id, 'pass');
-            save_and_delete(program).then(() => {
-                resolve();
-            });
+            await save_and_delete(program);
         }
-    });
-});
+    } catch (err) {
+        console.log(program.id, 'Error (get xml):', err);
+        await save_after_error(program, err.toString());
+    }
+};
 
 (async () => {
     await database.sync({alter: true});
@@ -418,17 +414,17 @@ const main = program => new Promise(resolve => {
     // Run check and download audio from channels
     if (!args[0]) {
         const programs = await Programs.findAll();
+        const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
         let runs = [];
         for (let program of programs) {
-            if (program.state === 1 && new Date() - new Date(program.updatedAt) > 2 * 60 * 60 * 1000) {
+            if (program.state === 1 && new Date() - new Date(program.updatedAt) > TWO_HOURS_IN_MS) {
                 program.state = 0;
                 await program.save();
             } else if (program.state === 0) {
                 runs.push(main(program));
             }
         }
-        Promise.all(runs).then(() => {
-            console.log('finish');
-        });
+        await Promise.all(runs);
+        console.log('finish');
     }
 })();
