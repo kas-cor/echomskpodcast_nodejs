@@ -34,32 +34,21 @@ const exec_download = '-f ba --audio-format mp3 --write-thumbnail --embed-thumbn
  * @returns {string}
  */
 const string_filter = text => {
-    const replace = {
-        '&amp;': '&',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&#039;': '\'',
-        '&lsqb;': '[',
-        '&rsqb;': ']',
-        '&Hat;': '^',
-        '&sol;': '/',
-        '&lpar;': '(',
-        '&rpar;': ')',
-        '&plus;': '+',
-        '&bsol;': '\\',
-        '&nbsp;': ' ',
-        '&copy;': '©',
-        '*': '',
-        '_': ' ',
+    const replacements = {
+        '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': '\'',
+        '&lsqb;': '[', '&rsqb;': ']', '&Hat;': '^', '&sol;': '/', '&lpar;': '(',
+        '&rpar;': ')', '&plus;': '+', '&bsol;': '\\', '&nbsp;': ' ', '&copy;': '©',
+        '*': '', '_': ' ',
     };
-    for (const search in replace) {
-        if (replace.hasOwnProperty(search)) {
-            text = text.replaceAll(search, replace[search]);
-        }
-    }
 
-    return text.trim();
+    const pattern = Object.keys(replacements)
+        .sort((a, b) => b.length - a.length)
+        .map(key => key.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&'))
+        .join('|');
+
+    const regex = new RegExp(pattern, 'g');
+
+    return text.replace(regex, match => replacements[match]).trim();
 };
 
 /**
@@ -68,7 +57,7 @@ const string_filter = text => {
  * @param {string} video_ids
  * @returns {boolean}
  */
-const video_id_is_present = (video_id, video_ids) => !!JSON.parse(video_ids).find(e => e === video_id);
+const video_id_is_present = (video_id, video_ids) => !!video_ids.find(e => e === video_id);
 
 /**
  * Add new video ID in video IDs
@@ -77,12 +66,12 @@ const video_id_is_present = (video_id, video_ids) => !!JSON.parse(video_ids).fin
  * @returns {string}
  */
 const add_new_video_id = (video_id, video_ids) => {
-    let video_ids_arr = JSON.parse(video_ids);
+    let video_ids_arr = [...video_ids];
     video_ids_arr.push(video_id);
     if (video_ids_arr.length > 20) {
         video_ids_arr.shift();
     }
-    return JSON.stringify(video_ids_arr);
+    return video_ids_arr;
 };
 
 /**
@@ -136,16 +125,19 @@ const save_and_delete = (program, video_id = null) => new Promise(resolve => {
                 await fsPromises.unlink(filepath);
                 console.log(program.id, 'delete ' + filepath);
             } catch (e) {
+                console.error(program.id, 'Error deleting file:', filepath, e.message);
             }
             try {
                 await fsPromises.unlink(filepath + '.webp');
                 console.log(program.id, 'delete ' + filepath + '.webp');
             } catch (e) {
+                console.error(program.id, 'Error deleting file:', filepath + '.webp', e.message);
             }
             try {
                 await fsPromises.unlink(filepath + '.jpg');
                 console.log(program.id, 'delete ' + filepath + '.jpg');
             } catch (e) {
+                console.error(program.id, 'Error deleting file:', filepath + '.jpg', e.message);
             }
         }
         resolve();
@@ -313,7 +305,8 @@ const main = async program => {
                 console.log(program.id, 'get info error:', err);
                 await save_after_error(program, err.toString());
             }
-        } else {
+        }
+        else {
             console.log(program.id, 'pass');
             await save_and_delete(program);
         }
@@ -355,7 +348,7 @@ const main = async program => {
                 url: 'https://www.youtube.com/feeds/videos.xml?channel_id=' + channel_id,
                 index: 0,
                 state: 0,
-                video_ids: '["' + new Date().getTime() + '"]',
+                video_ids: [],
             });
         }
     }
@@ -392,7 +385,7 @@ const main = async program => {
     // Reset video IDs in channel
     if (args[0] === 'reset_ids' && args[1]) {
         await Programs.update({
-            video_ids: '["' + new Date().getTime() + '"]',
+            video_ids: [],
         }, {
             where: {
                 id: args[1],

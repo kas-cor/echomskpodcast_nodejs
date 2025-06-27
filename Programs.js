@@ -21,8 +21,9 @@ const Programs = database.define('programs', {
         allowNull: false
     },
     video_ids: {
-        type: Sequelize.TEXT,
-        allowNull: false
+        type: Sequelize.JSON,
+        allowNull: false,
+        defaultValue: [],
     },
     tag: {
         type: Sequelize.STRING,
