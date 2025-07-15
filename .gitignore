@@ -1,5 +1,6 @@
 # IDEA
 .idea
+.opencode
 
 # Dependency directories
 node_modules/
