@@ -272,11 +272,12 @@ const main = async program => {
 
         console.log(program.id, 'get info...');
         const info = await get_info(video_id);
+        const title = string_filter(entry.title);
         console.log(program.id, 'info:', {
             is_live: info.is_live,
             original_url: info.original_url,
             duration: info.duration,
-            title: info.title
+            title: title
         });
 
         if (info.duration && !info.is_live && !info.original_url.includes('shorts')) {
@@ -292,7 +293,7 @@ const main = async program => {
                     video_id,
                     tag: program.tag,
                     duration: info.duration,
-                    title: string_filter(info.title),
+                    title: title,
                     channel: extract_channel_from_xml(xml),
                     thumb: thumbnail_file,
                 });
